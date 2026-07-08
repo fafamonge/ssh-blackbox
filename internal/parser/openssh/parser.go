@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/fafamonge/ssh-blackbox/internal/evidence"
 )
@@ -38,6 +39,12 @@ func ParseLine(line string) (*evidence.Event, bool, error) {
 		Raw:           line,
 		Actor:         map[string]any{},
 		Context:       map[string]any{},
+	}
+
+	now := time.Now()
+	ts, err := parseSyslogTimestamp(ev.TimestampRaw, now.Year(), time.Local)
+	if err == nil {
+		ev.Timestamp = ts
 	}
 
 	msg := m[4]
