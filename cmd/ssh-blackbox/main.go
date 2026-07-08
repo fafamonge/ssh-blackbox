@@ -11,6 +11,7 @@ import (
 	"github.com/fafamonge/ssh-blackbox/internal/link"
 	"github.com/fafamonge/ssh-blackbox/internal/parser/auditd"
 	"github.com/fafamonge/ssh-blackbox/internal/parser/openssh"
+	"github.com/fafamonge/ssh-blackbox/internal/reconstruction"
 	"github.com/fafamonge/ssh-blackbox/internal/session"
 	"github.com/fafamonge/ssh-blackbox/internal/version"
 )
@@ -41,7 +42,14 @@ func main() {
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
 				os.Exit(1)
 			}
+
+		case "reconstruct":
+			if err := runReconstruct(os.Args[2:]); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				os.Exit(1)
+			}
 			return
+
 		}
 	}
 
@@ -220,6 +228,61 @@ func buildAuditSessionsFromFile(filePath string) ([]correlation.AuditSession, er
 	return builder.Sessions(), nil
 }
 
+func runReconstruct(args []string) error {
+	var sshFile string
+	var auditFile string
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--ssh-file":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--ssh-file requires a path")
+			}
+			sshFile = args[i+1]
+			i++
+		case "--audit-file":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--audit-file requires a path")
+			}
+			auditFile = args[i+1]
+			i++
+		default:
+			return fmt.Errorf(
+				"unknown reconstruct argument: %s",
+				args[i],
+			)
+		}
+	}
+
+	if sshFile == "" {
+		return fmt.Errorf("reconstruct requires --ssh-file")
+	}
+
+	if auditFile == "" {
+		return fmt.Errorf("reconstruct requires --audit-file")
+	}
+
+	sshSessions, err := buildSSHSessionsFromFile(sshFile)
+	if err != nil {
+		return err
+	}
+
+	auditSessions, err := buildAuditSessionsFromFile(auditFile)
+	if err != nil {
+		return err
+	}
+
+	evidenceLinks := link.Build(sshSessions, auditSessions)
+
+	reconstructions := reconstruction.Build(
+		sshSessions,
+		auditSessions,
+		evidenceLinks,
+	)
+
+	return reconstruction.WriteText(os.Stdout, reconstructions)
+}
+
 func parseFileArg(command string, args []string) (string, error) {
 	var filePath string
 
@@ -253,4 +316,5 @@ func printUsage() {
 	fmt.Println("  ssh-blackbox parse --file <secure.log>")
 	fmt.Println("  ssh-blackbox parse-audit --file <audit.log>")
 	fmt.Println("  ssh-blackbox evidence-set --ssh-file <secure.log> --audit-file <audit.log>")
+	fmt.Println("  ssh-blackbox reconstruct --ssh-file <secure.log> --audit-file <audit.log>")
 }
