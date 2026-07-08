@@ -1,0 +1,8 @@
+Jul  7 23:20:04 testnode sshd[2734654]: Received disconnect from 192.0.2.10 port 40644:11: Bye Bye [preauth]
+Jul  7 23:20:04 testnode sshd[2734654]: Disconnected from authenticating user root 192.0.2.10 port 40644 [preauth]
+Jul  7 23:20:40 testnode sshd[2735181]: Invalid user db2inst1 from 198.51.100.25 port 42941
+Jul  7 23:20:41 testnode sshd[2735181]: Received disconnect from 198.51.100.25 port 42941:11: Bye Bye [preauth]
+Jul  7 23:20:41 testnode sshd[2735181]: Disconnected from invalid user db2inst1 198.51.100.25 port 42941 [preauth]
+Jul  7 23:23:55 testnode sshd[2736915]: Invalid user bitwarden from 203.0.113.50 port 53594
+Jul  7 23:23:57 testnode sshd[2736915]: Received disconnect from 203.0.113.50 port 53594:11: Bye Bye [preauth]
+Jul  7 23:23:57 testnode sshd[2736915]: Disconnected from invalid user bitwarden 203.0.113.50 port 53594 [preauth]

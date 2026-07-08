@@ -33,3 +33,9 @@ build/
 evidence/
 samples/private/
 captures/
+
+# Build outputs
+/bin/
+
+# Allow anonymized test fixtures
+!tests/fixtures/**/*.log
