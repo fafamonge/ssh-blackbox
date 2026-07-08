@@ -7,12 +7,16 @@ import (
 )
 
 type AuditSession struct {
-	SessionID  int              `json:"session_id"`
-	AUID       string           `json:"auid,omitempty"`
-	StartRaw   string           `json:"start_raw,omitempty"`
-	EndRaw     string           `json:"end_raw,omitempty"`
-	EventCount int              `json:"event_count"`
-	Events     []evidence.Event `json:"events,omitempty"`
+	SessionID      int              `json:"session_id"`
+	AUID           string           `json:"auid,omitempty"`
+	RemoteAddr     string           `json:"remote_addr,omitempty"`
+	Terminal       string           `json:"terminal,omitempty"`
+	EffectiveUsers []string         `json:"effective_users,omitempty"`
+	Executables    []string         `json:"executables,omitempty"`
+	StartRaw       string           `json:"start_raw,omitempty"`
+	EndRaw         string           `json:"end_raw,omitempty"`
+	EventCount     int              `json:"event_count"`
+	Events         []evidence.Event `json:"events,omitempty"`
 }
 
 type AuditSessionBuilder struct {
@@ -47,6 +51,25 @@ func (b *AuditSessionBuilder) AddEvent(ev evidence.Event) {
 		s.AUID = stringFromActor(ev, "auid")
 	}
 
+	if s.RemoteAddr == "" {
+		s.RemoteAddr = stringFromActor(ev, "addr")
+	}
+
+	if s.Terminal == "" {
+		s.Terminal = firstNonEmpty(
+			stringFromActor(ev, "terminal"),
+			stringFromActor(ev, "tty"),
+		)
+	}
+
+	if euid := stringFromActor(ev, "euid"); euid != "" {
+		s.EffectiveUsers = appendUnique(s.EffectiveUsers, euid)
+	}
+
+	if exe := stringFromActor(ev, "exe"); exe != "" {
+		s.Executables = appendUnique(s.Executables, exe)
+	}
+
 	if s.StartRaw == "" || ev.TimestampRaw < s.StartRaw {
 		s.StartRaw = ev.TimestampRaw
 	}
@@ -66,6 +89,8 @@ func (b *AuditSessionBuilder) Sessions() []AuditSession {
 	result := make([]AuditSession, 0, len(b.sessions))
 
 	for _, s := range b.sessions {
+		sort.Strings(s.EffectiveUsers)
+		sort.Strings(s.Executables)
 		result = append(result, *s)
 	}
 
@@ -106,4 +131,22 @@ func stringFromActor(ev evidence.Event, key string) string {
 	}
 
 	return s
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func appendUnique(values []string, value string) []string {
+	for _, existing := range values {
+		if existing == value {
+			return values
+		}
+	}
+	return append(values, value)
 }

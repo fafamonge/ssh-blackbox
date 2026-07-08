@@ -63,4 +63,20 @@ func TestAuditSessionBuilderFromFixture(t *testing.T) {
 	if sessions[0].Events[0].EventType != "auditd.user_login" {
 		t.Fatalf("expected first event to be auditd.user_login, got %s", sessions[0].Events[0].EventType)
 	}
+
+	if sessions[0].RemoteAddr != "190.5.138.94" {
+		t.Fatalf("expected remote addr 190.5.138.94, got %s", sessions[0].RemoteAddr)
+	}
+
+	if sessions[0].Terminal != "/dev/pts/4" {
+		t.Fatalf("expected terminal /dev/pts/4, got %s", sessions[0].Terminal)
+	}
+
+	if len(sessions[0].EffectiveUsers) != 1 || sessions[0].EffectiveUsers[0] != "root" {
+		t.Fatalf("expected effective user root, got %v", sessions[0].EffectiveUsers)
+	}
+
+	if len(sessions[0].Executables) != 2 {
+		t.Fatalf("expected 2 executables, got %v", sessions[0].Executables)
+	}
 }
