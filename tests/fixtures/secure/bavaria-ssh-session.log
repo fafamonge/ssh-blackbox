@@ -1,0 +1,2 @@
+Jul  8 18:00:28 bavaria.hybridsync.com sshd[2634610]: Accepted publickey for wagner from 190.5.138.94 port 62133 ssh2: ED25519 SHA256:UH+BxqPfMEmQI1hU2dDFHLM/wF6gMkrNKUaJmV/9coY
+Jul  8 18:00:28 bavaria.hybridsync.com sshd[2634610]: pam_unix(sshd:session): session opened for user wagner(uid=1011) by wagner(uid=0)
