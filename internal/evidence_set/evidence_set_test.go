@@ -20,4 +20,8 @@ func TestNewEvidenceSet(t *testing.T) {
 	if es.UncorrelatedEvents == nil {
 		t.Fatal("expected uncorrelated_events to be initialized")
 	}
+
+	if es.Links == nil {
+		t.Fatal("expected links to be initialized")
+	}
 }

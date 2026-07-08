@@ -8,6 +8,7 @@ import (
 
 	"github.com/fafamonge/ssh-blackbox/internal/correlation"
 	"github.com/fafamonge/ssh-blackbox/internal/evidence_set"
+	"github.com/fafamonge/ssh-blackbox/internal/link"
 	"github.com/fafamonge/ssh-blackbox/internal/parser/auditd"
 	"github.com/fafamonge/ssh-blackbox/internal/parser/openssh"
 	"github.com/fafamonge/ssh-blackbox/internal/session"
@@ -152,6 +153,8 @@ func runEvidenceSet(args []string) error {
 		}
 		es.AuditSessions = auditSessions
 	}
+
+	es.Links = link.Build(es.SSHSessions, es.AuditSessions)
 
 	encoder := json.NewEncoder(os.Stdout)
 	return encoder.Encode(es)
