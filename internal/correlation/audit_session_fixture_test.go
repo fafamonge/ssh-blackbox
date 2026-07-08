@@ -87,4 +87,16 @@ func TestAuditSessionBuilderFromFixture(t *testing.T) {
 	if len(sessions[0].Executables) != 3 {
 		t.Fatalf("expected 3 executables, got %v", sessions[0].Executables)
 	}
+
+	if len(sessions[0].ProcessIDs) != 4 {
+		t.Fatalf("expected 4 process ids, got %v", sessions[0].ProcessIDs)
+	}
+
+	if len(sessions[0].ParentPIDs) != 1 || sessions[0].ParentPIDs[0] != 2634891 {
+		t.Fatalf("expected parent pid 2634891, got %v", sessions[0].ParentPIDs)
+	}
+
+	if len(sessions[0].Keys) != 1 || sessions[0].Keys[0] != "root_exec" {
+		t.Fatalf("expected key root_exec, got %v", sessions[0].Keys)
+	}
 }

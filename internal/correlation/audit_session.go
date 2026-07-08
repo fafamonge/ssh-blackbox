@@ -13,6 +13,9 @@ type AuditSession struct {
 	Terminals      []string         `json:"terminals,omitempty"`
 	EffectiveUsers []string         `json:"effective_users,omitempty"`
 	Executables    []string         `json:"executables,omitempty"`
+	ProcessIDs     []int            `json:"process_ids,omitempty"`
+	ParentPIDs     []int            `json:"parent_pids,omitempty"`
+	Keys           []string         `json:"keys,omitempty"`
 	StartRaw       string           `json:"start_raw,omitempty"`
 	EndRaw         string           `json:"end_raw,omitempty"`
 	EventCount     int              `json:"event_count"`
@@ -70,6 +73,18 @@ func (b *AuditSessionBuilder) AddEvent(ev evidence.Event) {
 		s.Executables = appendUnique(s.Executables, exe)
 	}
 
+	if ev.PID != 0 {
+		s.ProcessIDs = appendUniqueInt(s.ProcessIDs, ev.PID)
+	}
+
+	if ppid, ok := intFromContext(ev, "ppid"); ok {
+		s.ParentPIDs = appendUniqueInt(s.ParentPIDs, ppid)
+	}
+
+	if key := stringFromContext(ev, "key"); key != "" {
+		s.Keys = appendUnique(s.Keys, key)
+	}
+
 	if s.StartRaw == "" || ev.TimestampRaw < s.StartRaw {
 		s.StartRaw = ev.TimestampRaw
 	}
@@ -92,6 +107,9 @@ func (b *AuditSessionBuilder) Sessions() []AuditSession {
 		sort.Strings(s.EffectiveUsers)
 		sort.Strings(s.Terminals)
 		sort.Strings(s.Executables)
+		sort.Ints(s.ProcessIDs)
+		sort.Ints(s.ParentPIDs)
+		sort.Strings(s.Keys)
 		result = append(result, *s)
 	}
 
@@ -144,6 +162,47 @@ func firstNonEmpty(values ...string) string {
 }
 
 func appendUnique(values []string, value string) []string {
+	for _, existing := range values {
+		if existing == value {
+			return values
+		}
+	}
+	return append(values, value)
+}
+
+func intFromContext(ev evidence.Event, key string) (int, bool) {
+	if ev.Context == nil {
+		return 0, false
+	}
+
+	v, ok := ev.Context[key]
+	if !ok {
+		return 0, false
+	}
+
+	n, ok := v.(int)
+	return n, ok
+}
+
+func stringFromContext(ev evidence.Event, key string) string {
+	if ev.Context == nil {
+		return ""
+	}
+
+	v, ok := ev.Context[key]
+	if !ok {
+		return ""
+	}
+
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+
+	return s
+}
+
+func appendUniqueInt(values []int, value int) []int {
 	for _, existing := range values {
 		if existing == value {
 			return values
