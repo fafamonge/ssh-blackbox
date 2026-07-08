@@ -47,6 +47,8 @@ func ParseLine(line string) (*evidence.Event, bool, error) {
 		}
 	}
 
+	parseNestedMsgPairs(ev)
+
 	return ev, true, nil
 }
 
@@ -67,4 +69,27 @@ func typedValue(v string) any {
 func mustInt(s string) int {
 	n, _ := strconv.Atoi(s)
 	return n
+}
+
+func parseNestedMsgPairs(ev *evidence.Event) {
+	msg, ok := ev.Context["msg"].(string)
+	if !ok || msg == "" {
+		return
+	}
+
+	for _, mm := range pairRE.FindAllStringSubmatch(msg, -1) {
+		key := mm[1]
+		value := cleanValue(mm[2])
+
+		switch key {
+		case "addr", "terminal":
+			if _, exists := ev.Actor[key]; !exists {
+				ev.Actor[key] = typedValue(value)
+			}
+		default:
+			if _, exists := ev.Context[key]; !exists {
+				ev.Context[key] = typedValue(value)
+			}
+		}
+	}
 }
