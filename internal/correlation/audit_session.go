@@ -7,19 +7,22 @@ import (
 )
 
 type AuditSession struct {
-	SessionID      int              `json:"session_id"`
-	AUID           string           `json:"auid,omitempty"`
-	RemoteAddr     string           `json:"remote_addr,omitempty"`
-	Terminals      []string         `json:"terminals,omitempty"`
-	EffectiveUsers []string         `json:"effective_users,omitempty"`
-	Executables    []string         `json:"executables,omitempty"`
-	ProcessIDs     []int            `json:"process_ids,omitempty"`
-	ParentPIDs     []int            `json:"parent_pids,omitempty"`
-	Keys           []string         `json:"keys,omitempty"`
-	StartRaw       string           `json:"start_raw,omitempty"`
-	EndRaw         string           `json:"end_raw,omitempty"`
-	EventCount     int              `json:"event_count"`
-	Events         []evidence.Event `json:"events,omitempty"`
+	SessionID            int              `json:"session_id"`
+	AUID                 string           `json:"auid,omitempty"`
+	RemoteAddr           string           `json:"remote_addr,omitempty"`
+	Terminals            []string         `json:"terminals,omitempty"`
+	EffectiveUsers       []string         `json:"effective_users,omitempty"`
+	Executables          []string         `json:"executables,omitempty"`
+	ProcessIDs           []int            `json:"process_ids,omitempty"`
+	ParentPIDs           []int            `json:"parent_pids,omitempty"`
+	Keys                 []string         `json:"keys,omitempty"`
+	HasRootExecution     bool             `json:"has_root_execution"`
+	HasRemoteAddress     bool             `json:"has_remote_address"`
+	HasMultipleTerminals bool             `json:"has_multiple_terminals"`
+	StartRaw             string           `json:"start_raw,omitempty"`
+	EndRaw               string           `json:"end_raw,omitempty"`
+	EventCount           int              `json:"event_count"`
+	Events               []evidence.Event `json:"events,omitempty"`
 }
 
 type AuditSessionBuilder struct {
@@ -91,6 +94,16 @@ func (b *AuditSessionBuilder) AddEvent(ev evidence.Event) {
 
 	if s.EndRaw == "" || ev.TimestampRaw > s.EndRaw {
 		s.EndRaw = ev.TimestampRaw
+	}
+
+	s.HasRemoteAddress = s.RemoteAddr != ""
+	s.HasMultipleTerminals = len(s.Terminals) > 1
+
+	for _, euid := range s.EffectiveUsers {
+		if euid == "root" {
+			s.HasRootExecution = true
+			break
+		}
 	}
 
 	s.Events = append(s.Events, ev)

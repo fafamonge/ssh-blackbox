@@ -99,4 +99,17 @@ func TestAuditSessionBuilderFromFixture(t *testing.T) {
 	if len(sessions[0].Keys) != 1 || sessions[0].Keys[0] != "root_exec" {
 		t.Fatalf("expected key root_exec, got %v", sessions[0].Keys)
 	}
+
+	if !sessions[0].HasRootExecution {
+		t.Fatal("expected has_root_execution to be true")
+	}
+
+	if !sessions[0].HasRemoteAddress {
+		t.Fatal("expected has_remote_address to be true")
+	}
+
+	if !sessions[0].HasMultipleTerminals {
+		t.Fatal("expected has_multiple_terminals to be true")
+	}
+
 }
