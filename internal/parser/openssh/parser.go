@@ -17,6 +17,13 @@ var (
 	disconnectInvalidRE        = regexp.MustCompile(`^Disconnected from invalid user (\S+) ([0-9a-fA-F:.]+) port (\d+) \[preauth\]$`)
 	disconnectAuthenticatingRE = regexp.MustCompile(`^Disconnected from authenticating user (\S+) ([0-9a-fA-F:.]+) port (\d+) \[preauth\]$`)
 	receivedDisconnectRE       = regexp.MustCompile(`^Received disconnect from ([0-9a-fA-F:.]+) port (\d+):(.+)$`)
+	acceptedPasswordRE         = regexp.MustCompile(`^Accepted password for (\S+) from ([0-9a-fA-F:.]+) port (\d+) ssh2$`)
+	acceptedPublickeyRE        = regexp.MustCompile(`^Accepted publickey for (\S+) from ([0-9a-fA-F:.]+) port (\d+) ssh2`)
+	failedPasswordRE           = regexp.MustCompile(`^Failed password for (invalid user )?(\S+) from ([0-9a-fA-F:.]+) port (\d+) ssh2$`)
+	sessionOpenedRE            = regexp.MustCompile(`^pam_unix\(sshd:session\): session opened for user (\S+)\(uid=\d+\) by`)
+	sessionClosedRE            = regexp.MustCompile(`^pam_unix\(sshd:session\): session closed for user (\S+)$`)
+	connectionClosedRE         = regexp.MustCompile(`^Connection closed by (invalid user )?(\S+) ([0-9a-fA-F:.]+) port (\d+) \[preauth\]$`)
+	subsystemRE                = regexp.MustCompile(`^subsystem request for (\S+) by user (\S+)$`)
 )
 
 func ParseLine(line string) (*evidence.Event, bool, error) {
@@ -84,6 +91,68 @@ func ParseLine(line string) (*evidence.Event, bool, error) {
 		ev.Actor["port"] = mustInt(mm[2])
 		ev.Context["message"] = strings.TrimSpace(mm[3])
 		ev.Context["phase"] = "preauth"
+		return ev, true, nil
+	}
+
+	if mm := acceptedPasswordRE.FindStringSubmatch(msg); mm != nil {
+		ev.EventType = "ssh.auth.accepted_password"
+		ev.Actor["username"] = mm[1]
+		ev.Actor["ip"] = mm[2]
+		ev.Actor["port"] = mustInt(mm[3])
+		ev.Context["auth_method"] = "password"
+		return ev, true, nil
+	}
+
+	if mm := acceptedPublickeyRE.FindStringSubmatch(msg); mm != nil {
+		ev.EventType = "ssh.auth.accepted_publickey"
+		ev.Actor["username"] = mm[1]
+		ev.Actor["ip"] = mm[2]
+		ev.Actor["port"] = mustInt(mm[3])
+		ev.Context["auth_method"] = "publickey"
+		return ev, true, nil
+	}
+
+	if mm := failedPasswordRE.FindStringSubmatch(msg); mm != nil {
+		ev.EventType = "ssh.auth.failed_password"
+		ev.Actor["username"] = mm[2]
+		ev.Actor["ip"] = mm[3]
+		ev.Actor["port"] = mustInt(mm[4])
+		if mm[1] != "" {
+			ev.Context["user_state"] = "invalid"
+		}
+		ev.Context["auth_method"] = "password"
+		ev.Context["phase"] = "preauth"
+		return ev, true, nil
+	}
+
+	if mm := sessionOpenedRE.FindStringSubmatch(msg); mm != nil {
+		ev.EventType = "ssh.session.opened"
+		ev.Actor["username"] = mm[1]
+		return ev, true, nil
+	}
+
+	if mm := sessionClosedRE.FindStringSubmatch(msg); mm != nil {
+		ev.EventType = "ssh.session.closed"
+		ev.Actor["username"] = mm[1]
+		return ev, true, nil
+	}
+
+	if mm := connectionClosedRE.FindStringSubmatch(msg); mm != nil {
+		ev.EventType = "ssh.session.connection_closed"
+		ev.Actor["username"] = mm[2]
+		ev.Actor["ip"] = mm[3]
+		ev.Actor["port"] = mustInt(mm[4])
+		if mm[1] != "" {
+			ev.Context["user_state"] = "invalid"
+		}
+		ev.Context["phase"] = "preauth"
+		return ev, true, nil
+	}
+
+	if mm := subsystemRE.FindStringSubmatch(msg); mm != nil {
+		ev.EventType = "ssh.session.subsystem"
+		ev.Actor["username"] = mm[2]
+		ev.Context["subsystem"] = mm[1]
 		return ev, true, nil
 	}
 
