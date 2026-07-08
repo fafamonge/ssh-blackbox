@@ -10,7 +10,7 @@ type AuditSession struct {
 	SessionID      int              `json:"session_id"`
 	AUID           string           `json:"auid,omitempty"`
 	RemoteAddr     string           `json:"remote_addr,omitempty"`
-	Terminal       string           `json:"terminal,omitempty"`
+	Terminals      []string         `json:"terminals,omitempty"`
 	EffectiveUsers []string         `json:"effective_users,omitempty"`
 	Executables    []string         `json:"executables,omitempty"`
 	StartRaw       string           `json:"start_raw,omitempty"`
@@ -55,11 +55,11 @@ func (b *AuditSessionBuilder) AddEvent(ev evidence.Event) {
 		s.RemoteAddr = stringFromActor(ev, "addr")
 	}
 
-	if s.Terminal == "" {
-		s.Terminal = firstNonEmpty(
-			stringFromActor(ev, "terminal"),
-			stringFromActor(ev, "tty"),
-		)
+	if terminal := firstNonEmpty(
+		stringFromActor(ev, "terminal"),
+		stringFromActor(ev, "tty"),
+	); terminal != "" {
+		s.Terminals = appendUnique(s.Terminals, terminal)
 	}
 
 	if euid := stringFromActor(ev, "euid"); euid != "" {
@@ -90,6 +90,7 @@ func (b *AuditSessionBuilder) Sessions() []AuditSession {
 
 	for _, s := range b.sessions {
 		sort.Strings(s.EffectiveUsers)
+		sort.Strings(s.Terminals)
 		sort.Strings(s.Executables)
 		result = append(result, *s)
 	}

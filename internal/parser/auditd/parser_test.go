@@ -98,7 +98,7 @@ func TestParseBavariaSSHSessionFixture(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if count != 3 {
-		t.Fatalf("expected 3 auditd events, got %d", count)
+	if count != 4 {
+		t.Fatalf("expected 4 auditd events, got %d", count)
 	}
 }
