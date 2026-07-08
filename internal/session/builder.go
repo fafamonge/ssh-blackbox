@@ -31,11 +31,14 @@ func (b *Builder) AddEvent(ev evidence.Event) {
 			RemotePort: intFromMap(ev.Actor, "port"),
 			PID:        ev.PID,
 			StartRaw:   ev.TimestampRaw,
+			StartTime:  ev.Timestamp,
+			EndTime:    ev.Timestamp,
 		}
 		b.sessions[key] = s
 	}
 
 	s.EndRaw = ev.TimestampRaw
+	s.EndTime = ev.Timestamp
 	s.Events = append(s.Events, ev)
 	s.EventCount = len(s.Events)
 }
