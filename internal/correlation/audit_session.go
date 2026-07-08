@@ -1,10 +1,16 @@
 package correlation
 
-import "github.com/fafamonge/ssh-blackbox/internal/evidence"
+import (
+	"sort"
+
+	"github.com/fafamonge/ssh-blackbox/internal/evidence"
+)
 
 type AuditSession struct {
 	SessionID  int              `json:"session_id"`
 	AUID       string           `json:"auid,omitempty"`
+	StartRaw   string           `json:"start_raw,omitempty"`
+	EndRaw     string           `json:"end_raw,omitempty"`
 	EventCount int              `json:"event_count"`
 	Events     []evidence.Event `json:"events,omitempty"`
 }
@@ -30,6 +36,8 @@ func (b *AuditSessionBuilder) AddEvent(ev evidence.Event) {
 		s = &AuditSession{
 			SessionID: ses,
 			AUID:      stringFromActor(ev, "auid"),
+			StartRaw:  ev.TimestampRaw,
+			EndRaw:    ev.TimestampRaw,
 			Events:    []evidence.Event{},
 		}
 		b.sessions[ses] = s
@@ -39,7 +47,18 @@ func (b *AuditSessionBuilder) AddEvent(ev evidence.Event) {
 		s.AUID = stringFromActor(ev, "auid")
 	}
 
+	if s.StartRaw == "" || ev.TimestampRaw < s.StartRaw {
+		s.StartRaw = ev.TimestampRaw
+	}
+
+	if s.EndRaw == "" || ev.TimestampRaw > s.EndRaw {
+		s.EndRaw = ev.TimestampRaw
+	}
+
 	s.Events = append(s.Events, ev)
+	sort.Slice(s.Events, func(i, j int) bool {
+		return s.Events[i].TimestampRaw < s.Events[j].TimestampRaw
+	})
 	s.EventCount = len(s.Events)
 }
 
@@ -49,6 +68,10 @@ func (b *AuditSessionBuilder) Sessions() []AuditSession {
 	for _, s := range b.sessions {
 		result = append(result, *s)
 	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].SessionID < result[j].SessionID
+	})
 
 	return result
 }
