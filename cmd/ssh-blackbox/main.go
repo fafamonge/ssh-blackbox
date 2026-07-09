@@ -297,7 +297,16 @@ func runReconstruct(args []string) error {
 		evidenceLinks,
 		criticalChanges,
 	)
-	return reconstruction.WriteText(os.Stdout, reconstructions)
+	unlinkedChanges := reconstruction.UnlinkedCriticalChanges(
+		reconstructions,
+		criticalChanges,
+	)
+
+	return reconstruction.WriteText(
+		os.Stdout,
+		reconstructions,
+		unlinkedChanges,
+	)
 }
 
 func buildAuditRecordsFromFile(filePath string) ([]auditrecord.Record, error) {

@@ -4,9 +4,15 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/fafamonge/ssh-blackbox/internal/change"
 )
 
-func WriteText(w io.Writer, reconstructions []Reconstruction) error {
+func WriteText(
+	w io.Writer,
+	reconstructions []Reconstruction,
+	unlinkedChanges []change.CriticalChange,
+) error {
 	for index, r := range reconstructions {
 		if index > 0 {
 			if _, err := fmt.Fprintln(w); err != nil {
@@ -138,6 +144,44 @@ func WriteText(w io.Writer, reconstructions []Reconstruction) error {
 
 		for _, reason := range r.LinkReasons {
 			if _, err := fmt.Fprintf(w, "- %s\n", reason); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(unlinkedChanges) > 0 {
+		if len(reconstructions) > 0 {
+			if _, err := fmt.Fprintln(w); err != nil {
+				return err
+			}
+		}
+
+		if _, err := fmt.Fprintln(w, "UNLINKED CRITICAL EVIDENCE"); err != nil {
+			return err
+		}
+
+		if _, err := fmt.Fprintln(
+			w,
+			"Recorded critical changes not attributed to a linked SSH session.",
+		); err != nil {
+			return err
+		}
+
+		for _, criticalChange := range unlinkedChanges {
+			if _, err := fmt.Fprintf(
+				w,
+				"serial=%s audit_session=%d actor=%s euid=%s exe=%s pid=%d ppid=%d tty=%s paths=%s keys=%s\n",
+				criticalChange.Serial,
+				criticalChange.AuditSession,
+				criticalChange.OriginalActor,
+				criticalChange.EffectiveUser,
+				criticalChange.Executable,
+				criticalChange.PID,
+				criticalChange.ParentPID,
+				criticalChange.Terminal,
+				strings.Join(criticalChange.Paths, ", "),
+				strings.Join(criticalChange.Keys, ", "),
+			); err != nil {
 				return err
 			}
 		}

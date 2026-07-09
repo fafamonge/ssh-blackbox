@@ -38,7 +38,7 @@ func TestWriteText(t *testing.T) {
 
 	var output bytes.Buffer
 
-	if err := WriteText(&output, reconstructions); err != nil {
+	if err := WriteText(&output, reconstructions, nil); err != nil {
 		t.Fatal(err)
 	}
 

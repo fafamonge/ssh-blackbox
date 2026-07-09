@@ -86,7 +86,7 @@ func TestFullLinkedCriticalChangeChain(t *testing.T) {
 
 	var output strings.Builder
 
-	if err := WriteText(&output, result); err != nil {
+	if err := WriteText(&output, result, nil); err != nil {
 		t.Fatal(err)
 	}
 
