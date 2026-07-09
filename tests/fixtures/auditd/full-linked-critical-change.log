@@ -1,0 +1,6 @@
+type=USER_LOGIN msg=audit(07/08/2026 18:00:28.674:3528770) : pid=2634610 uid=root auid=wagner ses=16695 msg='op=login id=wagner exe=/usr/libexec/openssh/sshd-session hostname=bavaria.hybridsync.com addr=190.5.138.94 terminal=/dev/pts/4 res=success'
+type=SYSCALL msg=audit(07/08/2026 18:00:48.134:3528891) : arch=x86_64 syscall=execve success=yes exit=0 ppid=2634891 pid=2634931 auid=wagner uid=root gid=root euid=root tty=pts5 ses=16695 comm=cp exe=/usr/bin/cp key=root_exec_user
+type=SYSCALL msg=audit(07/08/2026 18:00:49.100:3528892) : arch=x86_64 syscall=openat success=yes exit=3 ppid=2634891 pid=2634931 auid=wagner uid=root gid=root euid=root tty=pts5 ses=16695 comm=cp exe=/usr/bin/cp key=ssh_blackbox
+type=CWD msg=audit(07/08/2026 18:00:49.100:3528892) : cwd=/root
+type=PATH msg=audit(07/08/2026 18:00:49.100:3528892) : item=0 name=/root/.ssh/authorized_keys inode=12345 dev=09:02 mode=file,600 ouid=root ogid=root nametype=NORMAL
+type=PROCTITLE msg=audit(07/08/2026 18:00:49.100:3528892) : proctitle=cp /tmp/new_authorized_keys /root/.ssh/authorized_keys

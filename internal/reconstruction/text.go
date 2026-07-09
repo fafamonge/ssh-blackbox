@@ -108,9 +108,6 @@ func WriteText(w io.Writer, reconstructions []Reconstruction) error {
 		}
 
 		if len(r.CriticalChanges) > 0 {
-			if _, err := fmt.Fprintln(w); err != nil {
-				return err
-			}
 
 			if _, err := fmt.Fprintln(w, "CRITICAL FILE CHANGES"); err != nil {
 				return err
