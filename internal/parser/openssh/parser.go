@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	baseRE = regexp.MustCompile(`^([A-Z][a-z]{2}\s+\d+\s+\d{2}:\d{2}:\d{2})\s+(\S+)\s+sshd\[(\d+)\]:\s+(.*)$`)
+	baseRE = regexp.MustCompile(`^([A-Z][a-z]{2}\s+\d+\s+\d{2}:\d{2}:\d{2})\s+(\S+)\s+sshd(?:-session)?\[(\d+)\]:\s+(.*)$`)
 
 	invalidUserRE              = regexp.MustCompile(`^Invalid user (\S+) from ([0-9a-fA-F:.]+) port (\d+)$`)
 	disconnectInvalidRE        = regexp.MustCompile(`^Disconnected from invalid user (\S+) ([0-9a-fA-F:.]+) port (\d+) \[preauth\]$`)

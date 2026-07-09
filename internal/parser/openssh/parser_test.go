@@ -75,3 +75,27 @@ func parseFixture(t *testing.T, path string) fixtureResult {
 
 	return result
 }
+
+func TestParseSSHDSessionProcessName(t *testing.T) {
+	line := "Jul  9 23:20:29 bavaria sshd-session[3902454]: Accepted publickey for wagner from 190.5.138.94 port 57654 ssh2: ED25519 SHA256:UH+BxqPfMEmQI1hU2dDFHLM/wF6gMkrNKUaJmV/9coY"
+
+	ev, matched, err := ParseLine(line)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !matched {
+		t.Fatal("expected sshd-session line to match")
+	}
+	if ev.EventType != "ssh.auth.accepted_publickey" {
+		t.Fatalf("expected accepted publickey event, got %s", ev.EventType)
+	}
+	if ev.PID != 3902454 {
+		t.Fatalf("expected pid 3902454, got %d", ev.PID)
+	}
+	if ev.Actor["username"] != "wagner" {
+		t.Fatalf("expected username wagner, got %v", ev.Actor["username"])
+	}
+	if ev.Actor["ip"] != "190.5.138.94" {
+		t.Fatalf("expected ip 190.5.138.94, got %v", ev.Actor["ip"])
+	}
+}
