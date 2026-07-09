@@ -1,0 +1,3 @@
+type=USER_LOGIN msg=audit(07/08/2026 19:10:00.100:4000001) : pid=3100001 uid=root auid=wagner ses=17001 msg='op=login id=wagner exe=/usr/libexec/openssh/sshd-session hostname=testnode addr=192.0.2.55 terminal=/dev/pts/2 res=success'
+type=SYSCALL msg=audit(07/08/2026 19:10:15.200:4000002) : arch=x86_64 syscall=execve success=yes exit=0 ppid=3100100 pid=3100101 auid=wagner uid=root gid=root euid=root tty=pts3 ses=17001 comm=systemctl exe=/usr/bin/systemctl key=root_exec_user
+type=SYSCALL msg=audit(07/08/2026 19:10:20.300:4000003) : arch=x86_64 syscall=execve success=yes exit=0 ppid=3100100 pid=3100102 auid=wagner uid=root gid=root euid=root tty=pts3 ses=17001 comm=cp exe=/usr/bin/cp key=root_exec_user
