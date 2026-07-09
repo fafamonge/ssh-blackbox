@@ -40,8 +40,16 @@ func ParseLine(line string) (*evidence.Event, bool, error) {
 		switch key {
 		case "pid":
 			ev.PID = mustInt(value)
-		case "auid", "uid", "euid", "ses", "tty", "comm", "exe", "addr", "terminal":
+
+		case "auid", "uid", "euid":
+			storeActorIdentity(ev, key, value)
+
+		case "AUID", "UID", "EUID":
+			storeResolvedActorIdentity(ev, key, value)
+
+		case "ses", "tty", "comm", "exe", "addr", "terminal":
 			ev.Actor[key] = typedValue(value)
+
 		default:
 			ev.Context[key] = typedValue(value)
 		}
@@ -69,6 +77,26 @@ func typedValue(v string) any {
 func mustInt(s string) int {
 	n, _ := strconv.Atoi(s)
 	return n
+}
+
+func storeActorIdentity(ev *evidence.Event, key, value string) {
+	typed := typedValue(value)
+
+	if _, ok := typed.(int); ok {
+		ev.Actor[key+"_id"] = typed
+
+		if _, exists := ev.Actor[key]; !exists {
+			ev.Actor[key] = typed
+		}
+		return
+	}
+
+	ev.Actor[key] = typed
+}
+
+func storeResolvedActorIdentity(ev *evidence.Event, key, value string) {
+	normalizedKey := strings.ToLower(key)
+	ev.Actor[normalizedKey] = value
 }
 
 func parseNestedMsgPairs(ev *evidence.Event) {
