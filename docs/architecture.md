@@ -2,185 +2,352 @@
 
 SSH Blackbox follows an evidence-first architecture.
 
-The system is divided into two major responsibility domains:
+The system is designed to collect, normalize, correlate and reconstruct security-relevant SSH activity while preserving a strict distinction between observed evidence and inferred relationships.
 
-1. Evidence Core
-2. Detection and Alerting Layer
+## Architectural Principles
 
-The Evidence Core is the trusted foundation of the system. Detection and alerting consume evidence but must never be required for evidence collection.
+### Evidence Comes First
 
-## Architectural Principle
+Evidence collection and evidence interpretation are separate responsibilities.
 
-> Collection must continue independently of detection and alert delivery.
+A parser records what a source says. It does not decide whether activity is malicious.
 
-A failure in a detection rule, notification provider, remote endpoint or analysis component must not stop the collection of evidence.
+A correlation component may establish a relationship only when supported by explicit evidence.
 
-## High-Level Flow
+A reconstruction presents linked evidence but must not invent missing events or attribution.
 
-SSH and system activity is observed through supported evidence sources.
+### Missing Correlation Does Not Erase Evidence
 
-The initial processing flow is:
+A security-critical change may be observed even when SSH Blackbox cannot conservatively associate it with a specific SSH session.
 
-Evidence Sources
-→ Collection
-→ Parsing
-→ Normalization
-→ Event Identification
-→ Local Evidence Store
-→ Detection
-→ Alerting
+Such evidence must remain visible as unlinked critical evidence.
 
-Future versions may additionally export evidence to remote collectors or replicated evidence stores.
+### Correlation Must Explain Its Basis
 
-## 1. Evidence Sources
-
-Evidence Sources are operating system facilities and security-relevant files from which SSH Blackbox obtains observable facts.
-
-Initial sources may include:
-
-* systemd journal,
-* `/var/log/secure`,
-* `/var/log/auth.log`,
-* SSH configuration files,
-* authorized_keys files,
-* local account databases and metadata,
-* selected filesystem metadata,
-* auditd events where available.
-
-The architecture must not assume that every Linux distribution exposes the same sources.
-
-Source adapters should isolate platform-specific differences from the internal evidence model.
-
-## 2. Evidence Collector
-
-The Evidence Collector reads supported sources and forwards observations to the processing pipeline.
-
-Its responsibilities are:
-
-* observe new source events,
-* preserve source identity,
-* maintain collection position where required,
-* avoid unnecessary duplication,
-* recover cleanly after restart,
-* send observations for parsing and normalization.
-
-The collector should remain small and operationally predictable.
-
-## 3. Parser Layer
-
-Parsers convert source-specific observations into structured data.
-
-A parser understands the syntax of a particular source but should not decide whether an event is malicious.
+Evidence links record the reasons that support them.
 
 Examples include:
 
-* OpenSSH authentication parser,
-* systemd journal parser,
-* secure/auth.log parser,
-* authorized_keys change parser,
-* SSH configuration change parser.
+* actor identity match,
+* remote address match.
 
-Parsing and detection are separate responsibilities.
+The architecture favors explainable conservative links over opaque confidence scores or speculative attribution.
 
-## 4. Normalization Layer
+### Collection Must Remain Independent
 
-The Normalization Layer converts parsed observations into the SSH Blackbox Evidence Model.
+The long-term architecture separates the Evidence Core from detection and alerting.
 
-Normalized events use stable fields and event categories regardless of the original source.
+A failure in:
 
-For example, a failed SSH authentication observed through journald and the same type of event observed through `/var/log/secure` should produce compatible normalized evidence events.
+* a detection rule,
+* an alert provider,
+* a remote endpoint,
+* a dashboard,
+* an analysis component,
 
-Normalization enables later detection logic to operate independently of the original operating system log format.
+must not prevent evidence collection.
 
-## 5. Event Identification
+## Implemented Processing Architecture
 
-Every accepted evidence event receives a unique event identifier.
+The current implementation provides the following processing path:
 
-The event identity mechanism must support:
+```text
+                         +------------------+
+                         |  OpenSSH logs    |
+                         +--------+---------+
+                                  |
+                                  v
+                         +------------------+
+                         | OpenSSH parser   |
+                         +--------+---------+
+                                  |
+                                  v
+                         +------------------+
+                         | SSH sessions     |
+                         +--------+---------+
+                                  |
+                                  |
+                                  v
++------------------+     +------------------+
+| auditd records   |     | conservative     |
++--------+---------+     | evidence linking |
+         |               +--------+---------+
+         v                        ^
++------------------+              |
+| auditd parser    |              |
++--------+---------+              |
+         |                        |
+         v                        |
++------------------+              |
+| audit records    |              |
+| grouped by       |              |
+| audit serial     |              |
++--------+---------+              |
+         |                        |
+         +-------------+----------+
+                       |
+             +---------+---------+
+             |                   |
+             v                   v
+    +----------------+   +------------------+
+    | audit sessions |   | critical changes |
+    +----------------+   +--------+---------+
+                                  |
+                                  v
+                         +------------------+
+                         | reconstruction   |
+                         +--------+---------+
+                                  |
+                     +------------+------------+
+                     |                         |
+                     v                         v
+          +---------------------+   +---------------------+
+          | linked forensic     |   | unlinked critical   |
+          | reconstruction      |   | evidence            |
+          +---------------------+   +---------------------+
+```
 
-* local uniqueness,
-* safe merging from multiple nodes,
-* chronological reconstruction,
-* future integrity verification.
+## 1. Evidence Sources
 
-The exact identifier strategy will be selected during implementation.
+Evidence sources are operating system facilities and security-relevant records from which SSH Blackbox obtains observable facts.
 
-## 6. Local Evidence Store
+Currently implemented parsing paths include:
 
-The initial implementation will be local-first.
+* OpenSSH secure-style logs,
+* auditd records.
 
-The first storage format is expected to be append-oriented JSON Lines (JSONL), with one normalized event per line.
+The architecture may later support additional source adapters such as:
 
-The storage layer must prioritize:
+* systemd journal,
+* distribution-specific authentication logs,
+* additional filesystem evidence,
+* external or replicated evidence feeds.
 
-* simple recovery,
-* sequential writing,
-* human inspectability,
-* machine processing,
-* controlled rotation,
-* future integrity extensions.
+The architecture must not assume that every Linux distribution exposes identical sources.
 
-The initial local evidence store does not claim to be immutable against complete root compromise.
+## 2. Parser Layer
 
-That limitation must remain explicit.
+Parsers convert source-specific records into normalized evidence events.
 
-## 7. Detection Layer
+Current parser packages include:
 
-The Detection Layer consumes normalized evidence.
+* OpenSSH parsing,
+* auditd parsing.
 
-It is not part of the trusted evidence collection path.
+A parser is responsible for syntax and source interpretation.
 
-Its responsibilities may include:
+A parser must not:
 
-* matching individual event rules,
-* detecting repeated failures,
-* identifying unusual authentication patterns,
-* detecting changes to SSH trust material,
-* correlating related events,
-* assigning detection severity,
-* generating findings.
+* classify an actor as malicious,
+* invent a missing session,
+* claim that two independent records belong together without evidence,
+* discard a critical observation merely because later correlation is unavailable.
 
-Detection failures must not interrupt evidence collection.
+## 3. Normalized Evidence
 
-## 8. Alerting Layer
+Source observations are converted into the SSH Blackbox evidence model.
 
-The Alerting Layer consumes findings produced by detection.
+Normalized events preserve information such as:
 
-Future notification providers may include:
+* event type,
+* source,
+* hostname,
+* raw timestamp,
+* normalized timestamp where available,
+* process identifier,
+* actor attributes,
+* contextual attributes,
+* original raw evidence.
 
-* email,
-* webhook,
-* messaging platforms,
-* SIEM integrations,
-* external incident management systems.
+Normalization allows later components to operate without depending directly on source log syntax.
 
-Alert delivery failures must not affect evidence collection or evidence storage.
+## 4. SSH Session Construction
 
-## 9. State
+OpenSSH events are grouped into SSH session representations.
 
-SSH Blackbox may require small amounts of operational state, such as:
+A session may include:
 
-* source cursor positions,
-* last processed journal cursor,
-* file observation metadata,
-* deduplication state,
-* collector health information.
+* session identifier,
+* username,
+* remote IP address,
+* remote port,
+* sshd process identifier,
+* start and end observations,
+* normalized timestamps,
+* authentication method,
+* source events.
 
-Operational state is not evidence.
+Session construction organizes related OpenSSH evidence. It does not by itself establish a relationship with auditd activity.
 
-State may be recreated or lost without invalidating evidence already collected.
+## 5. Audit Record Grouping
 
-This distinction must remain explicit in the implementation.
+auditd frequently represents one logical audited operation using multiple records that share the same audit serial.
 
-## 10. Trust Boundaries
+SSH Blackbox groups audit evidence by serial before reconstructing higher-level facts.
 
-The initial local deployment has an unavoidable trust boundary:
+This is required because information about one operation may be distributed across records such as:
 
-A process with complete root control of the monitored server may eventually alter the collector, evidence files, configuration or system clock.
+* SYSCALL,
+* PATH,
+* USER_LOGIN,
+* related audit record types.
 
-SSH Blackbox should improve evidence quality and incident reconstruction without making false claims about local immutability.
+The grouped audit record is an intermediate evidence structure.
 
-Stronger future deployment models may include:
+## 6. Audit Session Correlation
+
+Normalized audit events are summarized into audit sessions using audit session identifiers and available actor context.
+
+An audit session may summarize:
+
+* audit session ID,
+* original audit user,
+* remote address,
+* terminals,
+* effective users,
+* executables,
+* process IDs,
+* parent process IDs,
+* audit keys,
+* session bounds,
+* root execution observations.
+
+The original actor and the effective user are distinct concepts.
+
+For example, activity may retain:
+
+```text
+original actor: wagner
+effective user: root
+```
+
+This distinction is essential for reconstructing privilege transitions.
+
+## 7. Critical Change Reconstruction
+
+Grouped audit records are analyzed for changes to security-critical paths.
+
+A reconstructed critical change may contain:
+
+* audit serial,
+* audit session,
+* original actor,
+* effective user,
+* executable,
+* command,
+* process ID,
+* parent process ID,
+* terminal,
+* affected paths,
+* audit keys.
+
+Critical changes are evidence objects independent of whether they can later be linked to an SSH session.
+
+## 8. Conservative Evidence Linking
+
+The linking layer associates SSH sessions with audit sessions only when available evidence satisfies supported conservative criteria.
+
+Current link reasons include:
+
+* `actor_identity_match`,
+* `remote_address_match`.
+
+The link itself records its reasons.
+
+The architecture deliberately avoids treating temporal proximity alone as proof of identity.
+
+Future linking rules may be added, but they must remain:
+
+* explainable,
+* testable,
+* evidence-based,
+* conservative.
+
+## 9. Forensic Reconstruction
+
+The reconstruction layer combines:
+
+* SSH sessions,
+* audit sessions,
+* evidence links,
+* critical changes.
+
+A linked reconstruction can present:
+
+* SSH actor,
+* remote endpoint,
+* authentication method,
+* linked audit session,
+* original actor,
+* effective users,
+* terminals,
+* recorded executions,
+* critical file changes,
+* link basis.
+
+The reconstruction layer must not claim facts that are absent from the underlying evidence.
+
+## 10. Unlinked Critical Evidence
+
+Critical evidence is preserved even when no supported SSH-to-audit link exists.
+
+This evidence is reported separately as:
+
+```text
+UNLINKED CRITICAL EVIDENCE
+```
+
+The distinction is intentional.
+
+An unlinked critical change means:
+
+* the critical evidence was observed,
+* the available processing path reconstructed the change,
+* no supported conservative link associated it with a reconstructed SSH session.
+
+It does not mean:
+
+* the change was necessarily caused through SSH,
+* the actor is unknown if auditd recorded an original actor,
+* the event is malicious,
+* the system should infer a missing SSH session.
+
+## 11. Evidence Set
+
+The evidence-set output provides a machine-readable representation of reconstructed evidence.
+
+It may include:
+
+* SSH sessions,
+* audit sessions,
+* evidence links,
+* critical changes.
+
+This representation is intended to support later analysis, storage, reporting and detection components without forcing those concerns into the parser layer.
+
+## 12. Human-Readable Reconstruction
+
+The reconstruction text output is designed for rapid operational incident review.
+
+Its purpose is to answer important questions quickly without requiring an operator to manually join raw OpenSSH and auditd records.
+
+The text representation is a view over evidence and correlations. It is not a replacement for the underlying evidence.
+
+## 13. Trust Boundaries
+
+The initial local deployment has an unavoidable trust boundary.
+
+A process with complete root control of the monitored server may eventually alter:
+
+* the collector,
+* evidence files,
+* configuration,
+* audit configuration,
+* the system clock.
+
+SSH Blackbox improves evidence quality and incident reconstruction but does not claim local immutability against complete root compromise.
+
+Future deployment models may include:
 
 * remote evidence forwarding,
 * signed event chains,
@@ -190,11 +357,85 @@ Stronger future deployment models may include:
 * immutable object storage,
 * multi-node evidence replication.
 
-## 11. Failure Isolation
+## 14. Future Evidence Core
+
+The current repository implements forensic processing components. The broader Evidence Core architecture may later add:
+
+```text
+Evidence Sources
+        |
+        v
+Collection
+        |
+        v
+Parsing
+        |
+        v
+Normalization
+        |
+        v
+Local Evidence Store
+        |
+        +----------> Correlation and Reconstruction
+        |
+        +----------> Detection
+                            |
+                            v
+                         Alerting
+```
+
+Potential Evidence Core responsibilities include:
+
+* observing new source events,
+* preserving source identity,
+* maintaining collection cursors,
+* avoiding unnecessary duplication,
+* recovering after restart,
+* append-oriented evidence storage,
+* controlled rotation,
+* collector health reporting.
+
+Operational state must remain distinct from evidence.
+
+Examples of operational state include:
+
+* source cursor positions,
+* last processed journal cursor,
+* file observation metadata,
+* deduplication state,
+* collector health information.
+
+Loss of operational state must not invalidate evidence already collected.
+
+## 15. Detection and Alerting Direction
+
+Detection and alerting are consumers of evidence, not prerequisites for evidence collection.
+
+Future detection capabilities may include:
+
+* repeated authentication failure detection,
+* unusual authentication patterns,
+* changes to SSH trust material,
+* privileged execution findings,
+* critical path modification findings,
+* cross-event correlation,
+* severity assignment.
+
+Future alert providers may include:
+
+* email,
+* webhook,
+* messaging platforms,
+* SIEM integrations,
+* external incident management systems.
+
+Detection or alert delivery failure must not stop the Evidence Core.
+
+## 16. Failure Isolation
 
 The architecture should isolate failures between components.
 
-The following failures must not stop the Evidence Core:
+The following future failures must not stop evidence collection:
 
 * malformed detection rules,
 * alert provider failure,
@@ -203,35 +444,20 @@ The following failures must not stop the Evidence Core:
 * dashboard outage,
 * reporting failure.
 
-The core objective remains continuous evidence collection.
-
-## MVP Architecture
-
-The first implementation milestone should remain intentionally small.
-
-The MVP should provide:
-
-* one supported Linux platform family for initial validation,
-* journald and/or secure log collection,
-* OpenSSH authentication event parsing,
-* normalized evidence events,
-* append-oriented local JSONL storage,
-* persistent source position,
-* service execution under systemd,
-* basic collector health status,
-* controlled test fixtures with no real private evidence.
-
-The MVP should not attempt to implement every future integrity, remote collection or detection capability at once.
+The core objective remains durable evidence collection and reliable reconstruction.
 
 ## Architectural Direction
 
-SSH Blackbox should evolve from a reliable local evidence recorder into a distributed forensic telemetry system without sacrificing the simplicity and reliability of its Evidence Core.
+SSH Blackbox should evolve from a reliable local forensic evidence processor into a broader distributed forensic telemetry system without sacrificing conservative reasoning or operational simplicity.
 
 Evidence comes first.
+
+Correlation explains relationships.
+
+Reconstruction organizes supported facts.
+
+Unlinked evidence remains evidence.
 
 Detection interprets evidence.
 
 Alerting communicates findings.
-
-Each layer depends on the layer below it, but the Evidence Core must never depend on the layers above it.
-
