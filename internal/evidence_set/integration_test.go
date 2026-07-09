@@ -60,7 +60,19 @@ func TestBavariaEvidenceLink(t *testing.T) {
 		t.Fatalf("expected 1 evidence link, got %d", len(links))
 	}
 
-	if len(links[0].Reasons) != 2 {
-		t.Fatalf("expected 2 link reasons, got %v", links[0].Reasons)
+	expectedReasons := []string{
+		link.ReasonActorIdentityMatch,
+		link.ReasonRemoteAddressMatch,
+		link.ReasonProcessIDMatch,
+	}
+
+	if len(links[0].Reasons) != len(expectedReasons) {
+		t.Fatalf("expected %d link reasons, got %v", len(expectedReasons), links[0].Reasons)
+	}
+
+	for i, expectedReason := range expectedReasons {
+		if links[0].Reasons[i] != expectedReason {
+			t.Fatalf("expected reason %s at index %d, got %v", expectedReason, i, links[0].Reasons)
+		}
 	}
 }
