@@ -24,4 +24,8 @@ func TestNewEvidenceSet(t *testing.T) {
 	if es.Links == nil {
 		t.Fatal("expected links to be initialized")
 	}
+
+	if es.CriticalChanges == nil {
+		t.Fatal("expected critical_changes to be initialized")
+	}
 }

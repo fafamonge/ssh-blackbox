@@ -3,6 +3,7 @@ package reconstruction
 import (
 	"sort"
 
+	"github.com/fafamonge/ssh-blackbox/internal/change"
 	"github.com/fafamonge/ssh-blackbox/internal/correlation"
 	"github.com/fafamonge/ssh-blackbox/internal/link"
 	"github.com/fafamonge/ssh-blackbox/internal/session"
@@ -20,25 +21,27 @@ type RecordedExecution struct {
 }
 
 type Reconstruction struct {
-	SSHSessionID   string              `json:"ssh_session_id"`
-	User           string              `json:"user,omitempty"`
-	RemoteIP       string              `json:"remote_ip,omitempty"`
-	RemotePort     int                 `json:"remote_port,omitempty"`
-	AuthMethod     string              `json:"auth_method,omitempty"`
-	StartRaw       string              `json:"start_raw,omitempty"`
-	EndRaw         string              `json:"end_raw,omitempty"`
-	AuditSessionID int                 `json:"audit_session_id,omitempty"`
-	OriginalActor  string              `json:"original_actor,omitempty"`
-	EffectiveUsers []string            `json:"effective_users,omitempty"`
-	Terminals      []string            `json:"terminals,omitempty"`
-	Executions     []RecordedExecution `json:"executions,omitempty"`
-	LinkReasons    []string            `json:"link_reasons,omitempty"`
+	SSHSessionID    string                  `json:"ssh_session_id"`
+	User            string                  `json:"user,omitempty"`
+	RemoteIP        string                  `json:"remote_ip,omitempty"`
+	RemotePort      int                     `json:"remote_port,omitempty"`
+	AuthMethod      string                  `json:"auth_method,omitempty"`
+	StartRaw        string                  `json:"start_raw,omitempty"`
+	EndRaw          string                  `json:"end_raw,omitempty"`
+	AuditSessionID  int                     `json:"audit_session_id,omitempty"`
+	OriginalActor   string                  `json:"original_actor,omitempty"`
+	EffectiveUsers  []string                `json:"effective_users,omitempty"`
+	Terminals       []string                `json:"terminals,omitempty"`
+	Executions      []RecordedExecution     `json:"executions,omitempty"`
+	LinkReasons     []string                `json:"link_reasons,omitempty"`
+	CriticalChanges []change.CriticalChange `json:"critical_changes,omitempty"`
 }
 
 func Build(
 	sshSessions []session.SSHSession,
 	auditSessions []correlation.AuditSession,
 	links []link.EvidenceLink,
+	criticalChanges []change.CriticalChange,
 ) []Reconstruction {
 	sshByID := make(map[string]session.SSHSession, len(sshSessions))
 	for _, sshSession := range sshSessions {
@@ -52,6 +55,12 @@ func Build(
 
 	result := make([]Reconstruction, 0, len(links))
 
+	changesByAuditSession := map[int][]change.CriticalChange{}
+	for _, criticalChange := range criticalChanges {
+		changesByAuditSession[criticalChange.AuditSession] =
+			append(changesByAuditSession[criticalChange.AuditSession], criticalChange)
+	}
+
 	for _, evidenceLink := range links {
 		sshSession, sshOK := sshByID[evidenceLink.SSHSessionID]
 		auditSession, auditOK := auditByID[evidenceLink.AuditSessionID]
@@ -61,19 +70,20 @@ func Build(
 		}
 
 		reconstruction := Reconstruction{
-			SSHSessionID:   sshSession.SessionID,
-			User:           sshSession.User,
-			RemoteIP:       sshSession.RemoteIP,
-			RemotePort:     sshSession.RemotePort,
-			AuthMethod:     authMethodFromSSHSession(sshSession),
-			StartRaw:       sshSession.StartRaw,
-			EndRaw:         sshSession.EndRaw,
-			AuditSessionID: auditSession.SessionID,
-			OriginalActor:  auditSession.AUID,
-			EffectiveUsers: append([]string(nil), auditSession.EffectiveUsers...),
-			Terminals:      append([]string(nil), auditSession.Terminals...),
-			Executions:     executionsFromAuditSession(auditSession),
-			LinkReasons:    append([]string(nil), evidenceLink.Reasons...),
+			SSHSessionID:    sshSession.SessionID,
+			User:            sshSession.User,
+			RemoteIP:        sshSession.RemoteIP,
+			RemotePort:      sshSession.RemotePort,
+			AuthMethod:      authMethodFromSSHSession(sshSession),
+			StartRaw:        sshSession.StartRaw,
+			EndRaw:          sshSession.EndRaw,
+			AuditSessionID:  auditSession.SessionID,
+			OriginalActor:   auditSession.AUID,
+			EffectiveUsers:  append([]string(nil), auditSession.EffectiveUsers...),
+			Terminals:       append([]string(nil), auditSession.Terminals...),
+			Executions:      executionsFromAuditSession(auditSession),
+			LinkReasons:     append([]string(nil), evidenceLink.Reasons...),
+			CriticalChanges: append([]change.CriticalChange(nil), changesByAuditSession[auditSession.SessionID]...),
 		}
 
 		result = append(result, reconstruction)

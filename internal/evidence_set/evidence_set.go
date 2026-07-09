@@ -1,6 +1,7 @@
 package evidence_set
 
 import (
+	"github.com/fafamonge/ssh-blackbox/internal/change"
 	"github.com/fafamonge/ssh-blackbox/internal/correlation"
 	"github.com/fafamonge/ssh-blackbox/internal/evidence"
 	"github.com/fafamonge/ssh-blackbox/internal/link"
@@ -13,6 +14,7 @@ type EvidenceSet struct {
 	AuditSessions      []correlation.AuditSession `json:"audit_sessions,omitempty"`
 	Links              []link.EvidenceLink        `json:"links,omitempty"`
 	UncorrelatedEvents []evidence.Event           `json:"uncorrelated_events,omitempty"`
+	CriticalChanges    []change.CriticalChange    `json:"critical_changes,omitempty"`
 }
 
 func New() EvidenceSet {
@@ -22,5 +24,6 @@ func New() EvidenceSet {
 		AuditSessions:      []correlation.AuditSession{},
 		UncorrelatedEvents: []evidence.Event{},
 		Links:              []link.EvidenceLink{},
+		CriticalChanges:    []change.CriticalChange{},
 	}
 }

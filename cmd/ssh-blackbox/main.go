@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/fafamonge/ssh-blackbox/internal/auditrecord"
+	"github.com/fafamonge/ssh-blackbox/internal/change"
 	"github.com/fafamonge/ssh-blackbox/internal/correlation"
 	"github.com/fafamonge/ssh-blackbox/internal/evidence_set"
 	"github.com/fafamonge/ssh-blackbox/internal/link"
@@ -164,6 +166,14 @@ func runEvidenceSet(args []string) error {
 
 	es.Links = link.Build(es.SSHSessions, es.AuditSessions)
 
+	if auditFile != "" {
+		records, err := buildAuditRecordsFromFile(auditFile)
+		if err != nil {
+			return err
+		}
+		es.CriticalChanges = change.Build(records)
+	}
+
 	encoder := json.NewEncoder(os.Stdout)
 	return encoder.Encode(es)
 }
@@ -274,13 +284,48 @@ func runReconstruct(args []string) error {
 
 	evidenceLinks := link.Build(sshSessions, auditSessions)
 
+	auditRecords, err := buildAuditRecordsFromFile(auditFile)
+	if err != nil {
+		return err
+	}
+
+	criticalChanges := change.Build(auditRecords)
+
 	reconstructions := reconstruction.Build(
 		sshSessions,
 		auditSessions,
 		evidenceLinks,
+		criticalChanges,
 	)
-
 	return reconstruction.WriteText(os.Stdout, reconstructions)
+}
+
+func buildAuditRecordsFromFile(filePath string) ([]auditrecord.Record, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	builder := auditrecord.NewBuilder()
+	scanner := bufio.NewScanner(f)
+
+	for scanner.Scan() {
+		ev, matched, err := auditd.ParseLine(scanner.Text())
+		if err != nil {
+			return nil, err
+		}
+		if !matched {
+			continue
+		}
+		builder.AddEvent(*ev)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return builder.Records(), nil
 }
 
 func parseFileArg(command string, args []string) (string, error) {

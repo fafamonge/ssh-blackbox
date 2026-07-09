@@ -67,7 +67,7 @@ func TestBuildReconstruction(t *testing.T) {
 		},
 	}
 
-	result := Build(sshSessions, auditSessions, links)
+	result := Build(sshSessions, auditSessions, links, nil)
 
 	if len(result) != 1 {
 		t.Fatalf("expected 1 reconstruction, got %d", len(result))
@@ -121,7 +121,7 @@ func TestBuildIgnoresBrokenLinks(t *testing.T) {
 		},
 	}
 
-	result := Build(nil, nil, links)
+	result := Build(nil, nil, links, nil)
 
 	if len(result) != 0 {
 		t.Fatalf("expected no reconstructions, got %d", len(result))

@@ -107,6 +107,34 @@ func WriteText(w io.Writer, reconstructions []Reconstruction) error {
 			return err
 		}
 
+		if len(r.CriticalChanges) > 0 {
+			if _, err := fmt.Fprintln(w); err != nil {
+				return err
+			}
+
+			if _, err := fmt.Fprintln(w, "CRITICAL FILE CHANGES"); err != nil {
+				return err
+			}
+
+			for _, change := range r.CriticalChanges {
+				if _, err := fmt.Fprintf(
+					w,
+					"serial=%s actor=%s euid=%s exe=%s pid=%d ppid=%d tty=%s paths=%s keys=%s\n",
+					change.Serial,
+					change.OriginalActor,
+					change.EffectiveUser,
+					change.Executable,
+					change.PID,
+					change.ParentPID,
+					change.Terminal,
+					strings.Join(change.Paths, ", "),
+					strings.Join(change.Keys, ", "),
+				); err != nil {
+					return err
+				}
+			}
+		}
+
 		if _, err := fmt.Fprintln(w, "LINK BASIS"); err != nil {
 			return err
 		}
