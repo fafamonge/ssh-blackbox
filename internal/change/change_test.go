@@ -141,3 +141,122 @@ func TestBuildPreservesCriticalWatchRecordWithExecutionKey(t *testing.T) {
 		t.Fatalf("expected serial 6000002, got %s", changes[0].Serial)
 	}
 }
+
+func TestBuildClassifiesCriticalOperations(t *testing.T) {
+	path := "/root/.ssh/test.tmp"
+
+	records := []auditrecord.Record{
+		{
+			Serial:    "7000001",
+			Paths:     []string{path},
+			PathTypes: map[string][]string{path: []string{"CREATE"}},
+			Keys:      []string{"ssh_blackbox"},
+			Syscall:   "openat",
+		},
+		{
+			Serial:    "7000002",
+			Paths:     []string{path},
+			PathTypes: map[string][]string{path: []string{"NORMAL"}},
+			Keys:      []string{"ssh_blackbox"},
+			Syscall:   "fchmodat",
+		},
+		{
+			Serial:    "7000003",
+			Paths:     []string{path},
+			PathTypes: map[string][]string{path: []string{"NORMAL"}},
+			Keys:      []string{"ssh_blackbox"},
+			Syscall:   "openat",
+		},
+		{
+			Serial:    "7000004",
+			Paths:     []string{path},
+			PathTypes: map[string][]string{path: []string{"DELETE"}},
+			Keys:      []string{"ssh_blackbox"},
+			Syscall:   "unlinkat",
+		},
+		{
+			Serial:    "7000005",
+			Paths:     []string{path},
+			PathTypes: map[string][]string{path: []string{"NORMAL"}},
+			Keys:      []string{"ssh_blackbox"},
+			Syscall:   "renameat2",
+		},
+	}
+
+	changes := Build(records)
+
+	if len(changes) != 5 {
+		t.Fatalf("expected 5 critical changes, got %d", len(changes))
+	}
+
+	expected := map[string]string{
+		"7000001": OperationCreate,
+		"7000002": OperationMetadataChange,
+		"7000003": OperationModify,
+		"7000004": OperationDelete,
+		"7000005": OperationUnknown,
+	}
+
+	for _, criticalChange := range changes {
+		want := expected[criticalChange.Serial]
+
+		if criticalChange.Operation != want {
+			t.Fatalf(
+				"serial %s: expected operation %s, got %s",
+				criticalChange.Serial,
+				want,
+				criticalChange.Operation,
+			)
+		}
+	}
+}
+
+func TestBuildClassifiesBavariaRealOperations(t *testing.T) {
+	f, err := os.Open("../../tests/fixtures/auditd/bavaria-real-ses-16949.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	builder := auditrecord.NewBuilder()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		ev, matched, err := auditd.ParseLine(scanner.Text())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if matched {
+			builder.AddEvent(*ev)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	changes := Build(builder.Records())
+
+	operations := make(map[string]string, len(changes))
+	for _, criticalChange := range changes {
+		operations[criticalChange.Serial] = criticalChange.Operation
+	}
+
+	expected := map[string]string{
+		"4104131": OperationCreate,
+		"4104133": OperationMetadataChange,
+		"4104134": OperationModify,
+		"4104136": OperationDelete,
+	}
+
+	for serial, want := range expected {
+		if got := operations[serial]; got != want {
+			t.Fatalf(
+				"serial %s: expected operation %s, got %s",
+				serial,
+				want,
+				got,
+			)
+		}
+	}
+}

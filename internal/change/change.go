@@ -6,8 +6,17 @@ import (
 	"github.com/fafamonge/ssh-blackbox/internal/auditrecord"
 )
 
+const (
+	OperationCreate         = "create"
+	OperationModify         = "modify"
+	OperationMetadataChange = "metadata_change"
+	OperationDelete         = "delete"
+	OperationUnknown        = "unknown"
+)
+
 type CriticalChange struct {
 	Serial        string   `json:"serial"`
+	Operation     string   `json:"operation,omitempty"`
 	AuditSession  int      `json:"audit_session,omitempty"`
 	OriginalActor string   `json:"original_actor,omitempty"`
 	EffectiveUser string   `json:"effective_user,omitempty"`
@@ -30,6 +39,7 @@ func Build(records []auditrecord.Record) []CriticalChange {
 
 		change := CriticalChange{
 			Serial:        record.Serial,
+			Operation:     classifyOperation(record),
 			AuditSession:  record.SessionID,
 			OriginalActor: record.AUID,
 			EffectiveUser: record.EUID,
@@ -59,6 +69,39 @@ func hasCriticalWatchKey(keys []string) bool {
 			continue
 		default:
 			return true
+		}
+	}
+
+	return false
+}
+
+func classifyOperation(record auditrecord.Record) string {
+	if recordHasPathType(record, "DELETE") {
+		return OperationDelete
+	}
+
+	if recordHasPathType(record, "CREATE") {
+		return OperationCreate
+	}
+
+	switch record.Syscall {
+	case "chmod", "fchmod", "fchmodat":
+		return OperationMetadataChange
+
+	case "write", "pwrite64", "open", "openat", "truncate", "ftruncate":
+		return OperationModify
+
+	default:
+		return OperationUnknown
+	}
+}
+
+func recordHasPathType(record auditrecord.Record, expected string) bool {
+	for _, pathTypes := range record.PathTypes {
+		for _, pathType := range pathTypes {
+			if pathType == expected {
+				return true
+			}
 		}
 	}
 
