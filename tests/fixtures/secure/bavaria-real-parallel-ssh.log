@@ -1,0 +1,11 @@
+Jul  9 23:20:29 bavaria sshd-session[3902454]: Accepted publickey for wagner from 190.5.138.94 port 57654 ssh2: ED25519 SHA256:UH+BxqPfMEmQI1hU2dDFHLM/wF6gMkrNKUaJmV/9coY
+Jul  9 23:20:29 bavaria sshd-session[3902454]: pam_unix(sshd:session): session opened for user wagner(uid=1011) by wagner(uid=0)
+Jul  9 23:20:31 bavaria sshd-session[3902475]: Accepted publickey for wagner from 190.5.138.94 port 57655 ssh2: ED25519 SHA256:UH+BxqPfMEmQI1hU2dDFHLM/wF6gMkrNKUaJmV/9coY
+Jul  9 23:20:31 bavaria sshd-session[3902475]: pam_unix(sshd:session): session opened for user wagner(uid=1011) by wagner(uid=0)
+Jul  9 23:21:28 bavaria sudo[3903260]:  wagner : TTY=pts/2 ; PWD=/root ; USER=root ; COMMAND=/bin/bash
+Jul  9 23:21:28 bavaria sudo[3903260]: pam_unix(sudo-i:session): session opened for user root(uid=0) by wagner(uid=1011)
+Jul  9 23:21:41 bavaria sshd-session[3902477]: Connection closed by 190.5.138.94 port 57654
+Jul  9 23:21:41 bavaria sshd-session[3902542]: Connection closed by 190.5.138.94 port 57655
+Jul  9 23:21:41 bavaria sshd-session[3902454]: pam_unix(sshd:session): session closed for user wagner
+Jul  9 23:21:41 bavaria sshd-session[3902475]: pam_unix(sshd:session): session closed for user wagner
+Jul  9 23:21:41 bavaria sudo[3903260]: pam_unix(sudo-i:session): session closed for user root
