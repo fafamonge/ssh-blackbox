@@ -87,7 +87,8 @@ func classifyOperation(record auditrecord.Record) string {
 	}
 
 	switch record.Syscall {
-	case "chmod", "fchmod", "fchmodat":
+	case "chmod", "fchmod", "fchmodat",
+		"chown", "fchown", "fchownat", "lchown":
 		return OperationMetadataChange
 
 	case "write", "pwrite64", "open", "openat", "truncate", "ftruncate":

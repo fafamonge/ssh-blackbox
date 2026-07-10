@@ -181,12 +181,19 @@ func TestBuildClassifiesCriticalOperations(t *testing.T) {
 			Keys:      []string{"ssh_blackbox"},
 			Syscall:   "renameat2",
 		},
+		{
+			Serial:    "7000006",
+			Paths:     []string{path},
+			PathTypes: map[string][]string{path: []string{"NORMAL"}},
+			Keys:      []string{"ssh_blackbox"},
+			Syscall:   "chown",
+		},
 	}
 
 	changes := Build(records)
 
-	if len(changes) != 5 {
-		t.Fatalf("expected 5 critical changes, got %d", len(changes))
+	if len(changes) != 6 {
+		t.Fatalf("expected 6 critical changes, got %d", len(changes))
 	}
 
 	expected := map[string]string{
@@ -195,6 +202,7 @@ func TestBuildClassifiesCriticalOperations(t *testing.T) {
 		"7000003": OperationModify,
 		"7000004": OperationDelete,
 		"7000005": OperationUnknown,
+		"7000006": OperationMetadataChange,
 	}
 
 	for _, criticalChange := range changes {
@@ -247,6 +255,7 @@ func TestBuildClassifiesBavariaRealOperations(t *testing.T) {
 		"4104133": OperationMetadataChange,
 		"4104134": OperationModify,
 		"4104136": OperationDelete,
+		"4104158": OperationMetadataChange,
 	}
 
 	for serial, want := range expected {
