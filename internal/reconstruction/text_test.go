@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/fafamonge/ssh-blackbox/internal/change"
 )
 
 func TestWriteText(t *testing.T) {
@@ -61,5 +63,89 @@ func TestWriteText(t *testing.T) {
 		if !strings.Contains(text, fragment) {
 			t.Fatalf("expected output to contain %q", fragment)
 		}
+	}
+}
+
+func TestWriteTextSummarizesAuxiliaryExecutions(t *testing.T) {
+	reconstructions := []Reconstruction{
+		{
+			User:           "wagner",
+			RemoteIP:       "190.5.138.94",
+			RemotePort:     57654,
+			AuthMethod:     "publickey",
+			AuditSessionID: 16949,
+			Executions: []RecordedExecution{
+				{
+					TimestampRaw:  "1",
+					OriginalActor: "wagner",
+					EffectiveUser: "root",
+					Executable:    "/usr/bin/sudo",
+					PID:           100,
+				},
+				{
+					TimestampRaw:  "2",
+					OriginalActor: "wagner",
+					EffectiveUser: "root",
+					Executable:    "/usr/bin/bash",
+					PID:           200,
+				},
+				{
+					TimestampRaw:  "3",
+					OriginalActor: "wagner",
+					EffectiveUser: "root",
+					Executable:    "/usr/bin/grep",
+					PID:           300,
+				},
+				{
+					TimestampRaw:  "4",
+					OriginalActor: "wagner",
+					EffectiveUser: "root",
+					Executable:    "/usr/bin/grep",
+					PID:           301,
+				},
+				{
+					TimestampRaw:  "5",
+					OriginalActor: "wagner",
+					EffectiveUser: "root",
+					Executable:    "/usr/bin/rm",
+					PID:           400,
+					ParentPID:     200,
+				},
+			},
+			CriticalChanges: []change.CriticalChange{
+				{
+					Serial:    "5001",
+					PID:       400,
+					ParentPID: 200,
+					Keys:      []string{"ssh_blackbox"},
+				},
+			},
+		},
+	}
+
+	var output bytes.Buffer
+
+	if err := WriteText(&output, reconstructions, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	text := output.String()
+
+	required := []string{
+		"exe=/usr/bin/sudo",
+		"exe=/usr/bin/bash",
+		"exe=/usr/bin/rm",
+		"Additional recorded executions:",
+		"- /usr/bin/grep: 2 record(s)",
+	}
+
+	for _, expected := range required {
+		if !strings.Contains(text, expected) {
+			t.Fatalf("expected output to contain %q\noutput:\n%s", expected, text)
+		}
+	}
+
+	if strings.Contains(text, "exe=/usr/bin/grep") {
+		t.Fatalf("expected grep executions to be summarized\noutput:\n%s", text)
 	}
 }

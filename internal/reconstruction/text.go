@@ -3,6 +3,7 @@ package reconstruction
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/fafamonge/ssh-blackbox/internal/change"
@@ -93,7 +94,12 @@ func WriteText(
 			return err
 		}
 
-		for _, execution := range r.Executions {
+		relevantExecutions, summarizedExecutions := selectExecutionsForText(
+			r.Executions,
+			r.CriticalChanges,
+		)
+
+		for _, execution := range relevantExecutions {
 			if _, err := fmt.Fprintf(
 				w,
 				"%s  actor=%s  euid=%s  exe=%s  pid=%d  ppid=%d  tty=%s\n",
@@ -106,6 +112,23 @@ func WriteText(
 				execution.Terminal,
 			); err != nil {
 				return err
+			}
+		}
+
+		if len(summarizedExecutions) > 0 {
+			if _, err := fmt.Fprintln(w, "Additional recorded executions:"); err != nil {
+				return err
+			}
+
+			for _, summary := range summarizedExecutions {
+				if _, err := fmt.Fprintf(
+					w,
+					"- %s: %d record(s)\n",
+					summary.Executable,
+					summary.Count,
+				); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -188,4 +211,66 @@ func WriteText(
 	}
 
 	return nil
+}
+
+type executionSummary struct {
+	Executable string
+	Count      int
+}
+
+func selectExecutionsForText(
+	executions []RecordedExecution,
+	criticalChanges []change.CriticalChange,
+) ([]RecordedExecution, []executionSummary) {
+	if len(executions) == 0 {
+		return nil, nil
+	}
+
+	relevantPIDs := make(map[int]struct{})
+
+	for _, criticalChange := range criticalChanges {
+		if criticalChange.PID != 0 {
+			relevantPIDs[criticalChange.PID] = struct{}{}
+		}
+
+		if criticalChange.ParentPID != 0 {
+			relevantPIDs[criticalChange.ParentPID] = struct{}{}
+		}
+	}
+
+	relevant := make([]RecordedExecution, 0)
+	summaryCounts := make(map[string]int)
+
+	for index, execution := range executions {
+		_, pidRelevant := relevantPIDs[execution.PID]
+
+		if index == 0 || pidRelevant {
+			relevant = append(relevant, execution)
+			continue
+		}
+
+		executable := execution.Executable
+		if executable == "" {
+			executable = "(unknown)"
+		}
+
+		summaryCounts[executable]++
+	}
+
+	executables := make([]string, 0, len(summaryCounts))
+	for executable := range summaryCounts {
+		executables = append(executables, executable)
+	}
+
+	sort.Strings(executables)
+
+	summaries := make([]executionSummary, 0, len(executables))
+	for _, executable := range executables {
+		summaries = append(summaries, executionSummary{
+			Executable: executable,
+			Count:      summaryCounts[executable],
+		})
+	}
+
+	return relevant, summaries
 }
