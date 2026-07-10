@@ -11,6 +11,7 @@ func TestWriteTextIncludesUnlinkedCriticalEvidence(t *testing.T) {
 	unlinkedChanges := []change.CriticalChange{
 		{
 			Serial:        "5000001",
+			Operation:     change.OperationModify,
 			AuditSession:  17001,
 			OriginalActor: "wagner",
 			EffectiveUser: "root",
@@ -36,6 +37,7 @@ func TestWriteTextIncludesUnlinkedCriticalEvidence(t *testing.T) {
 		"not attributed to a linked SSH session",
 		"serial=5000001",
 		"audit_session=17001",
+		"operation=modify",
 		"actor=wagner",
 		"euid=root",
 		"exe=/usr/bin/cp",

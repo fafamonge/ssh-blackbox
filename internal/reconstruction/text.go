@@ -145,8 +145,9 @@ func WriteText(
 			for _, change := range r.CriticalChanges {
 				if _, err := fmt.Fprintf(
 					w,
-					"serial=%s actor=%s euid=%s exe=%s pid=%d ppid=%d tty=%s paths=%s keys=%s\n",
+					"serial=%s operation=%s actor=%s euid=%s exe=%s pid=%d ppid=%d tty=%s paths=%s keys=%s\n",
 					change.Serial,
+					change.Operation,
 					change.OriginalActor,
 					change.EffectiveUser,
 					change.Executable,
@@ -193,9 +194,10 @@ func WriteText(
 		for _, criticalChange := range unlinkedChanges {
 			if _, err := fmt.Fprintf(
 				w,
-				"serial=%s audit_session=%d actor=%s euid=%s exe=%s pid=%d ppid=%d tty=%s paths=%s keys=%s\n",
+				"serial=%s audit_session=%d operation=%s actor=%s euid=%s exe=%s pid=%d ppid=%d tty=%s paths=%s keys=%s\n",
 				criticalChange.Serial,
 				criticalChange.AuditSession,
+				criticalChange.Operation,
 				criticalChange.OriginalActor,
 				criticalChange.EffectiveUser,
 				criticalChange.Executable,
