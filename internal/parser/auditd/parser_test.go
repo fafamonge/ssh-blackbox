@@ -166,3 +166,23 @@ func TestParseInterpretedAuditIdentityCompatibility(t *testing.T) {
 		t.Fatalf("did not expect euid_id for interpreted identity, got %v", ev.Actor["euid_id"])
 	}
 }
+
+func TestParseRawSyscallNormalization(t *testing.T) {
+	line := `type=SYSCALL msg=audit(1783632088.782:4104065): arch=c000003e syscall=59 success=yes exit=0 ppid=3902480 pid=3903260 auid=1011 uid=1011 euid=0 tty=pts2 ses=16949 comm="sudo" exe="/usr/bin/sudo" key="root_exec"ARCH=x86_64 SYSCALL=execve AUID="wagner" UID="wagner" EUID="root"`
+
+	ev, matched, err := ParseLine(line)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !matched {
+		t.Fatal("expected raw syscall line to match")
+	}
+
+	if ev.Context["syscall"] != "execve" {
+		t.Fatalf("expected syscall execve, got %v", ev.Context["syscall"])
+	}
+
+	if ev.Context["syscall_id"] != 59 {
+		t.Fatalf("expected syscall_id 59, got %v", ev.Context["syscall_id"])
+	}
+}

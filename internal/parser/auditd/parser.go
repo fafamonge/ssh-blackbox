@@ -50,6 +50,15 @@ func ParseLine(line string) (*evidence.Event, bool, error) {
 		case "ses", "tty", "comm", "exe", "addr", "terminal":
 			ev.Actor[key] = typedValue(value)
 
+		case "syscall":
+			ev.Context["syscall_id"] = typedValue(value)
+			if _, exists := ev.Context["syscall"]; !exists {
+				ev.Context["syscall"] = typedValue(value)
+			}
+
+		case "SYSCALL":
+			ev.Context["syscall"] = value
+
 		default:
 			ev.Context[key] = typedValue(value)
 		}
