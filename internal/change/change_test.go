@@ -91,3 +91,53 @@ func TestBuildCriticalChangeFromFixture(t *testing.T) {
 		)
 	}
 }
+
+func TestBuildExcludesRootExecutionRecordsFromCriticalChanges(t *testing.T) {
+	records := []auditrecord.Record{
+		{
+			Serial:     "6000001",
+			SessionID:  16949,
+			AUID:       "wagner",
+			EUID:       "root",
+			Executable: "/usr/bin/grep",
+			PID:        3903269,
+			ParentPID:  3903268,
+			Terminal:   "pts3",
+			Paths:      []string{"/bin/grep", "/lib64/ld-linux-x86-64.so.2"},
+			Keys:       []string{"root_exec"},
+		},
+	}
+
+	changes := Build(records)
+
+	if len(changes) != 0 {
+		t.Fatalf("expected root_exec record not to become critical change, got %v", changes)
+	}
+}
+
+func TestBuildPreservesCriticalWatchRecordWithExecutionKey(t *testing.T) {
+	records := []auditrecord.Record{
+		{
+			Serial:     "6000002",
+			SessionID:  16949,
+			AUID:       "wagner",
+			EUID:       "root",
+			Executable: "/usr/bin/rm",
+			PID:        3903390,
+			ParentPID:  3903263,
+			Terminal:   "pts3",
+			Paths:      []string{"/root/.ssh/test.tmp"},
+			Keys:       []string{"root_exec", "ssh_blackbox"},
+		},
+	}
+
+	changes := Build(records)
+
+	if len(changes) != 1 {
+		t.Fatalf("expected critical watch record to be preserved, got %d changes", len(changes))
+	}
+
+	if changes[0].Serial != "6000002" {
+		t.Fatalf("expected serial 6000002, got %s", changes[0].Serial)
+	}
+}

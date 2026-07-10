@@ -24,7 +24,7 @@ func Build(records []auditrecord.Record) []CriticalChange {
 	result := make([]CriticalChange, 0)
 
 	for _, record := range records {
-		if len(record.Paths) == 0 || len(record.Keys) == 0 {
+		if len(record.Paths) == 0 || !hasCriticalWatchKey(record.Keys) {
 			continue
 		}
 
@@ -50,4 +50,17 @@ func Build(records []auditrecord.Record) []CriticalChange {
 	})
 
 	return result
+}
+
+func hasCriticalWatchKey(keys []string) bool {
+	for _, key := range keys {
+		switch key {
+		case "", "root_exec", "root_exec_user":
+			continue
+		default:
+			return true
+		}
+	}
+
+	return false
 }

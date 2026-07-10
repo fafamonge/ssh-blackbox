@@ -53,6 +53,36 @@ func TestBavariaRealParallelSSHChain(t *testing.T) {
 		t.Fatalf("expected audit session 16949, got %d", r.AuditSessionID)
 	}
 
+	if len(r.Executions) == 0 {
+		t.Fatal("expected recorded root executions")
+	}
+
+	if len(r.CriticalChanges) != 8 {
+		t.Fatalf(
+			"expected 8 critical file changes, got %d",
+			len(r.CriticalChanges),
+		)
+	}
+
+	if !hasRecordedExecution(r.Executions, "/usr/bin/sudo") {
+		t.Fatal("expected recorded sudo execution")
+	}
+
+	if !hasRecordedExecution(r.Executions, "/usr/bin/rm") {
+		t.Fatal("expected recorded rm execution")
+	}
+
+	for _, criticalChange := range r.CriticalChanges {
+		for _, key := range criticalChange.Keys {
+			if key == "root_exec" || key == "root_exec_user" {
+				t.Fatalf(
+					"execution-only key %s must not become critical change",
+					key,
+				)
+			}
+		}
+	}
+
 	var output strings.Builder
 	if err := WriteText(&output, result, nil); err != nil {
 		t.Fatal(err)
@@ -79,4 +109,17 @@ func TestBavariaRealParallelSSHChain(t *testing.T) {
 			t.Fatalf("expected output to contain %q\noutput:\n%s", expected, text)
 		}
 	}
+}
+
+func hasRecordedExecution(
+	executions []RecordedExecution,
+	executable string,
+) bool {
+	for _, execution := range executions {
+		if execution.Executable == executable {
+			return true
+		}
+	}
+
+	return false
 }
