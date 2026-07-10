@@ -18,9 +18,15 @@ func BuildFileActivities(
 
 	for _, criticalChange := range criticalChanges {
 		for _, path := range operationalPaths(criticalChange) {
+			pathChange := criticalChange
+			pathChange.Operation = operationForPath(
+				criticalChange,
+				path,
+			)
+
 			activitiesByPath[path] = append(
 				activitiesByPath[path],
-				criticalChange,
+				pathChange,
 			)
 		}
 	}
@@ -48,6 +54,27 @@ func BuildFileActivities(
 	}
 
 	return activities
+}
+
+func operationForPath(
+	criticalChange change.CriticalChange,
+	path string,
+) string {
+	pathTypes := criticalChange.PathTypes[path]
+
+	for _, pathType := range pathTypes {
+		if pathType == "CREATE" {
+			return change.OperationCreate
+		}
+	}
+
+	for _, pathType := range pathTypes {
+		if pathType == "DELETE" {
+			return change.OperationDelete
+		}
+	}
+
+	return criticalChange.Operation
 }
 
 func operationalPaths(

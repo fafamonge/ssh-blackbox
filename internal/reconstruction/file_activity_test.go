@@ -136,3 +136,65 @@ func TestBuildFileActivitiesPreservesParentOnlyEvidence(t *testing.T) {
 		t.Fatalf("expected path %s, got %s", path, activities[0].Path)
 	}
 }
+
+func TestBuildFileActivitiesRefinesOperationPerPath(t *testing.T) {
+	sourcePath := "/root/.bash_history-03263.tmp"
+	targetPath := "/root/.bash_history"
+
+	criticalChanges := []change.CriticalChange{
+		{
+			Serial:    "4104160",
+			Operation: change.OperationDelete,
+			Paths:     []string{sourcePath, targetPath},
+			PathTypes: map[string][]string{
+				sourcePath: {"DELETE"},
+				targetPath: {"DELETE", "CREATE"},
+			},
+		},
+	}
+
+	activities := BuildFileActivities(criticalChanges)
+
+	if len(activities) != 2 {
+		t.Fatalf("expected 2 file activities, got %d", len(activities))
+	}
+
+	sourceActivity := fileActivityByPathForTest(activities, sourcePath)
+	if sourceActivity == nil {
+		t.Fatalf("expected source activity for %s", sourcePath)
+	}
+
+	if sourceActivity.Changes[0].Operation != change.OperationDelete {
+		t.Fatalf(
+			"expected source operation %s, got %s",
+			change.OperationDelete,
+			sourceActivity.Changes[0].Operation,
+		)
+	}
+
+	targetActivity := fileActivityByPathForTest(activities, targetPath)
+	if targetActivity == nil {
+		t.Fatalf("expected target activity for %s", targetPath)
+	}
+
+	if targetActivity.Changes[0].Operation != change.OperationCreate {
+		t.Fatalf(
+			"expected target operation %s, got %s",
+			change.OperationCreate,
+			targetActivity.Changes[0].Operation,
+		)
+	}
+}
+
+func fileActivityByPathForTest(
+	activities []FileActivity,
+	path string,
+) *FileActivity {
+	for index := range activities {
+		if activities[index].Path == path {
+			return &activities[index]
+		}
+	}
+
+	return nil
+}
