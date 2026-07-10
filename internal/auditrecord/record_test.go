@@ -51,3 +51,64 @@ func TestBuildAuditRecordFromCriticalFileFixture(t *testing.T) {
 		t.Fatalf("expected ssh_blackbox key, got %v", records[0].Keys)
 	}
 }
+
+func TestBuildPreservesAuditOperationSemantics(t *testing.T) {
+	f, err := os.Open("../../tests/fixtures/auditd/bavaria-real-ses-16949.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	b := NewBuilder()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		ev, matched, err := auditd.ParseLine(scanner.Text())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if matched {
+			b.AddEvent(*ev)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	records := b.Records()
+
+	bySerial := make(map[string]Record, len(records))
+	for _, record := range records {
+		bySerial[record.Serial] = record
+	}
+
+	created := bySerial["4104131"]
+
+	if created.Syscall != "openat" {
+		t.Fatalf("expected syscall openat, got %q", created.Syscall)
+	}
+
+	if created.Success != "yes" {
+		t.Fatalf("expected success yes, got %q", created.Success)
+	}
+
+	path := "/root/.ssh/sshbb_20260709_232012.tmp"
+	pathTypes := created.PathTypes[path]
+
+	if len(pathTypes) != 1 || pathTypes[0] != "CREATE" {
+		t.Fatalf("expected CREATE path type for %s, got %v", path, pathTypes)
+	}
+
+	deleted := bySerial["4104136"]
+
+	if deleted.Syscall != "unlinkat" {
+		t.Fatalf("expected syscall unlinkat, got %q", deleted.Syscall)
+	}
+
+	pathTypes = deleted.PathTypes[path]
+
+	if len(pathTypes) != 1 || pathTypes[0] != "DELETE" {
+		t.Fatalf("expected DELETE path type for %s, got %v", path, pathTypes)
+	}
+}

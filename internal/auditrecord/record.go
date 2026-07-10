@@ -10,19 +10,22 @@ import (
 var serialRE = regexp.MustCompile(`audit\(.*:(\d+)\)`)
 
 type Record struct {
-	Serial     string           `json:"serial"`
-	SessionID  int              `json:"session_id,omitempty"`
-	AUID       string           `json:"auid,omitempty"`
-	EUID       string           `json:"euid,omitempty"`
-	Executable string           `json:"executable,omitempty"`
-	Command    string           `json:"command,omitempty"`
-	PID        int              `json:"pid,omitempty"`
-	ParentPID  int              `json:"parent_pid,omitempty"`
-	Terminal   string           `json:"terminal,omitempty"`
-	EventTypes []string         `json:"event_types,omitempty"`
-	Events     []evidence.Event `json:"events,omitempty"`
-	Paths      []string         `json:"paths,omitempty"`
-	Keys       []string         `json:"keys,omitempty"`
+	Serial     string              `json:"serial"`
+	SessionID  int                 `json:"session_id,omitempty"`
+	AUID       string              `json:"auid,omitempty"`
+	EUID       string              `json:"euid,omitempty"`
+	Executable string              `json:"executable,omitempty"`
+	Command    string              `json:"command,omitempty"`
+	PID        int                 `json:"pid,omitempty"`
+	ParentPID  int                 `json:"parent_pid,omitempty"`
+	Terminal   string              `json:"terminal,omitempty"`
+	EventTypes []string            `json:"event_types,omitempty"`
+	Events     []evidence.Event    `json:"events,omitempty"`
+	Paths      []string            `json:"paths,omitempty"`
+	PathTypes  map[string][]string `json:"path_types,omitempty"`
+	Keys       []string            `json:"keys,omitempty"`
+	Syscall    string              `json:"syscall,omitempty"`
+	Success    string              `json:"success,omitempty"`
 }
 
 type Builder struct {
@@ -80,8 +83,24 @@ func (b *Builder) AddEvent(ev evidence.Event) {
 		r.Terminal = stringFromMap(ev.Actor, "tty")
 	}
 
+	if r.Syscall == "" {
+		r.Syscall = stringFromMap(ev.Context, "syscall")
+	}
+
+	if r.Success == "" {
+		r.Success = stringFromMap(ev.Context, "success")
+	}
+
 	if name, ok := ev.Context["name"].(string); ok && name != "" {
 		r.Paths = appendUniqueString(r.Paths, name)
+
+		if nameType, ok := ev.Context["nametype"].(string); ok && nameType != "" {
+			if r.PathTypes == nil {
+				r.PathTypes = map[string][]string{}
+			}
+
+			r.PathTypes[name] = appendUniqueString(r.PathTypes[name], nameType)
+		}
 	}
 
 	if key, ok := ev.Context["key"].(string); ok && key != "" {
