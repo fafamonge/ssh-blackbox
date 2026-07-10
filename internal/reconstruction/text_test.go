@@ -31,6 +31,17 @@ func TestWriteText(t *testing.T) {
 					Terminal:      "pts5",
 				},
 			},
+			FileActivities: []FileActivity{
+				{
+					Path: "/root/.ssh/test.tmp",
+					Changes: []change.CriticalChange{
+						{
+							Serial:    "3528892",
+							Operation: change.OperationCreate,
+						},
+					},
+				},
+			},
 			LinkReasons: []string{
 				"actor_identity_match",
 				"remote_address_match",
@@ -55,6 +66,9 @@ func TestWriteText(t *testing.T) {
 		"16695",
 		"RECORDED EXECUTIONS",
 		"/usr/bin/touch",
+		"FILE ACTIVITY",
+		"/root/.ssh/test.tmp",
+		"- serial=3528892 operation=create",
 		"actor_identity_match",
 		"remote_address_match",
 	}
