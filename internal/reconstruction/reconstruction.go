@@ -35,6 +35,7 @@ type Reconstruction struct {
 	Executions      []RecordedExecution     `json:"executions,omitempty"`
 	LinkReasons     []string                `json:"link_reasons,omitempty"`
 	CriticalChanges []change.CriticalChange `json:"critical_changes,omitempty"`
+	FileActivities  []FileActivity          `json:"file_activities,omitempty"`
 }
 
 func Build(
@@ -69,6 +70,11 @@ func Build(
 			continue
 		}
 
+		sessionCriticalChanges := append(
+			[]change.CriticalChange(nil),
+			changesByAuditSession[auditSession.SessionID]...,
+		)
+
 		reconstruction := Reconstruction{
 			SSHSessionID:    sshSession.SessionID,
 			User:            sshSession.User,
@@ -83,7 +89,8 @@ func Build(
 			Terminals:       append([]string(nil), auditSession.Terminals...),
 			Executions:      executionsFromAuditSession(auditSession),
 			LinkReasons:     append([]string(nil), evidenceLink.Reasons...),
-			CriticalChanges: append([]change.CriticalChange(nil), changesByAuditSession[auditSession.SessionID]...),
+			CriticalChanges: sessionCriticalChanges,
+			FileActivities:  BuildFileActivities(sessionCriticalChanges),
 		}
 
 		result = append(result, reconstruction)

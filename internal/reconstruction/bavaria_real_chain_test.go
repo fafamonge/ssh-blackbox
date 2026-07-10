@@ -64,6 +64,58 @@ func TestBavariaRealParallelSSHChain(t *testing.T) {
 		)
 	}
 
+	if len(r.FileActivities) != 3 {
+		t.Fatalf(
+			"expected 3 file activities, got %d",
+			len(r.FileActivities),
+		)
+	}
+
+	sshActivity := fileActivityByPath(
+		r.FileActivities,
+		"/root/.ssh/sshbb_20260709_232012.tmp",
+	)
+	if sshActivity == nil {
+		t.Fatal("expected SSH temporary file activity")
+	}
+
+	expectedSSHOperations := []string{
+		change.OperationCreate,
+		change.OperationMetadataChange,
+		change.OperationModify,
+		change.OperationDelete,
+	}
+
+	if len(sshActivity.Changes) != len(expectedSSHOperations) {
+		t.Fatalf(
+			"expected %d SSH file changes, got %d",
+			len(expectedSSHOperations),
+			len(sshActivity.Changes),
+		)
+	}
+
+	for index, expectedOperation := range expectedSSHOperations {
+		if sshActivity.Changes[index].Operation != expectedOperation {
+			t.Fatalf(
+				"SSH file change %d: expected operation %s, got %s",
+				index,
+				expectedOperation,
+				sshActivity.Changes[index].Operation,
+			)
+		}
+	}
+
+	if fileActivityByPath(r.FileActivities, "/root/.bash_history") == nil {
+		t.Fatal("expected bash history file activity")
+	}
+
+	if fileActivityByPath(
+		r.FileActivities,
+		"/root/.bash_history-03263.tmp",
+	) == nil {
+		t.Fatal("expected temporary bash history file activity")
+	}
+
 	if !hasRecordedExecution(r.Executions, "/usr/bin/sudo") {
 		t.Fatal("expected recorded sudo execution")
 	}
@@ -132,4 +184,17 @@ func hasRecordedExecution(
 	}
 
 	return false
+}
+
+func fileActivityByPath(
+	activities []FileActivity,
+	path string,
+) *FileActivity {
+	for index := range activities {
+		if activities[index].Path == path {
+			return &activities[index]
+		}
+	}
+
+	return nil
 }

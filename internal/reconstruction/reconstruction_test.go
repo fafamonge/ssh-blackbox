@@ -3,6 +3,7 @@ package reconstruction
 import (
 	"testing"
 
+	"github.com/fafamonge/ssh-blackbox/internal/change"
 	"github.com/fafamonge/ssh-blackbox/internal/correlation"
 	"github.com/fafamonge/ssh-blackbox/internal/evidence"
 	"github.com/fafamonge/ssh-blackbox/internal/link"
@@ -67,7 +68,27 @@ func TestBuildReconstruction(t *testing.T) {
 		},
 	}
 
-	result := Build(sshSessions, auditSessions, links, nil)
+	criticalPath := "/root/.ssh/test.tmp"
+
+	criticalChanges := []change.CriticalChange{
+		{
+			Serial:       "3528892",
+			AuditSession: 16695,
+			Operation:    change.OperationCreate,
+			Paths:        []string{"/root/.ssh/", criticalPath},
+			PathTypes: map[string][]string{
+				"/root/.ssh/": {"PARENT"},
+				criticalPath:  {"CREATE"},
+			},
+		},
+	}
+
+	result := Build(
+		sshSessions,
+		auditSessions,
+		links,
+		criticalChanges,
+	)
 
 	if len(result) != 1 {
 		t.Fatalf("expected 1 reconstruction, got %d", len(result))
@@ -109,6 +130,42 @@ func TestBuildReconstruction(t *testing.T) {
 		t.Fatalf(
 			"expected effective user root, got %s",
 			r.Executions[0].EffectiveUser,
+		)
+	}
+
+	if len(r.CriticalChanges) != 1 {
+		t.Fatalf(
+			"expected 1 critical change, got %d",
+			len(r.CriticalChanges),
+		)
+	}
+
+	if len(r.FileActivities) != 1 {
+		t.Fatalf(
+			"expected 1 file activity, got %d",
+			len(r.FileActivities),
+		)
+	}
+
+	if r.FileActivities[0].Path != criticalPath {
+		t.Fatalf(
+			"expected file activity path %s, got %s",
+			criticalPath,
+			r.FileActivities[0].Path,
+		)
+	}
+
+	if len(r.FileActivities[0].Changes) != 1 {
+		t.Fatalf(
+			"expected 1 change in file activity, got %d",
+			len(r.FileActivities[0].Changes),
+		)
+	}
+
+	if r.FileActivities[0].Changes[0].Serial != "3528892" {
+		t.Fatalf(
+			"expected serial 3528892, got %s",
+			r.FileActivities[0].Changes[0].Serial,
 		)
 	}
 }
