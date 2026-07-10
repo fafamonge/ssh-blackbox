@@ -15,18 +15,19 @@ const (
 )
 
 type CriticalChange struct {
-	Serial        string   `json:"serial"`
-	Operation     string   `json:"operation,omitempty"`
-	AuditSession  int      `json:"audit_session,omitempty"`
-	OriginalActor string   `json:"original_actor,omitempty"`
-	EffectiveUser string   `json:"effective_user,omitempty"`
-	Executable    string   `json:"executable,omitempty"`
-	Command       string   `json:"command,omitempty"`
-	PID           int      `json:"pid,omitempty"`
-	ParentPID     int      `json:"parent_pid,omitempty"`
-	Terminal      string   `json:"terminal,omitempty"`
-	Paths         []string `json:"paths,omitempty"`
-	Keys          []string `json:"keys,omitempty"`
+	Serial        string              `json:"serial"`
+	Operation     string              `json:"operation,omitempty"`
+	AuditSession  int                 `json:"audit_session,omitempty"`
+	OriginalActor string              `json:"original_actor,omitempty"`
+	EffectiveUser string              `json:"effective_user,omitempty"`
+	Executable    string              `json:"executable,omitempty"`
+	Command       string              `json:"command,omitempty"`
+	PID           int                 `json:"pid,omitempty"`
+	ParentPID     int                 `json:"parent_pid,omitempty"`
+	Terminal      string              `json:"terminal,omitempty"`
+	Paths         []string            `json:"paths,omitempty"`
+	PathTypes     map[string][]string `json:"path_types,omitempty"`
+	Keys          []string            `json:"keys,omitempty"`
 }
 
 func Build(records []auditrecord.Record) []CriticalChange {
@@ -49,6 +50,7 @@ func Build(records []auditrecord.Record) []CriticalChange {
 			ParentPID:     record.ParentPID,
 			Terminal:      record.Terminal,
 			Paths:         append([]string(nil), record.Paths...),
+			PathTypes:     clonePathTypes(record.PathTypes),
 			Keys:          append([]string(nil), record.Keys...),
 		}
 
@@ -106,4 +108,18 @@ func recordHasPathType(record auditrecord.Record, expected string) bool {
 	}
 
 	return false
+}
+
+func clonePathTypes(source map[string][]string) map[string][]string {
+	if len(source) == 0 {
+		return nil
+	}
+
+	result := make(map[string][]string, len(source))
+
+	for path, pathTypes := range source {
+		result[path] = append([]string(nil), pathTypes...)
+	}
+
+	return result
 }

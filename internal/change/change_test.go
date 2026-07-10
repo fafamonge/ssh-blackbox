@@ -260,3 +260,45 @@ func TestBuildClassifiesBavariaRealOperations(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildPreservesPathTypes(t *testing.T) {
+	path := "/root/.ssh/authorized_keys"
+
+	records := []auditrecord.Record{
+		{
+			Serial:    "7000001",
+			SessionID: 17001,
+			Paths:     []string{"/root/.ssh/", path},
+			PathTypes: map[string][]string{
+				"/root/.ssh/": {"PARENT"},
+				path:          {"CREATE"},
+			},
+			Keys:    []string{"ssh_blackbox"},
+			Syscall: "openat",
+		},
+	}
+
+	result := Build(records)
+
+	if len(result) != 1 {
+		t.Fatalf("expected 1 critical change, got %d", len(result))
+	}
+
+	criticalChange := result[0]
+
+	if len(criticalChange.PathTypes["/root/.ssh/"]) != 1 ||
+		criticalChange.PathTypes["/root/.ssh/"][0] != "PARENT" {
+		t.Fatalf(
+			"expected parent path type to be preserved, got %v",
+			criticalChange.PathTypes["/root/.ssh/"],
+		)
+	}
+
+	if len(criticalChange.PathTypes[path]) != 1 ||
+		criticalChange.PathTypes[path][0] != "CREATE" {
+		t.Fatalf(
+			"expected create path type to be preserved, got %v",
+			criticalChange.PathTypes[path],
+		)
+	}
+}
