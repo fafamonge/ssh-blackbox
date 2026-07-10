@@ -112,3 +112,96 @@ func TestBuildPreservesAuditOperationSemantics(t *testing.T) {
 		t.Fatalf("expected DELETE path type for %s, got %v", path, pathTypes)
 	}
 }
+
+func TestBuildPreservesOrderedPathEntries(t *testing.T) {
+	f, err := os.Open("../../tests/fixtures/auditd/bavaria-real-ses-16949.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	builder := NewBuilder()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		ev, matched, err := auditd.ParseLine(scanner.Text())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if matched {
+			builder.AddEvent(*ev)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	records := builder.Records()
+
+	var renameRecord *Record
+	for index := range records {
+		if records[index].Serial == "4104160" {
+			renameRecord = &records[index]
+			break
+		}
+	}
+
+	if renameRecord == nil {
+		t.Fatal("expected audit record 4104160")
+	}
+
+	expected := []PathEntry{
+		{
+			Item:     0,
+			Name:     "/root/",
+			NameType: "PARENT",
+			Inode:    20618497,
+		},
+		{
+			Item:     1,
+			Name:     "/root/",
+			NameType: "PARENT",
+			Inode:    20618497,
+		},
+		{
+			Item:     2,
+			Name:     "/root/.bash_history-03263.tmp",
+			NameType: "DELETE",
+			Inode:    20619027,
+		},
+		{
+			Item:     3,
+			Name:     "/root/.bash_history",
+			NameType: "DELETE",
+			Inode:    20618964,
+		},
+		{
+			Item:     4,
+			Name:     "/root/.bash_history",
+			NameType: "CREATE",
+			Inode:    20619027,
+		},
+	}
+
+	if len(renameRecord.PathEntries) != len(expected) {
+		t.Fatalf(
+			"expected %d path entries, got %d",
+			len(expected),
+			len(renameRecord.PathEntries),
+		)
+	}
+
+	for index, want := range expected {
+		got := renameRecord.PathEntries[index]
+
+		if got != want {
+			t.Fatalf(
+				"path entry %d: expected %+v, got %+v",
+				index,
+				want,
+				got,
+			)
+		}
+	}
+}

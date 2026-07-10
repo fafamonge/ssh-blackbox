@@ -9,23 +9,31 @@ import (
 
 var serialRE = regexp.MustCompile(`audit\(.*:(\d+)\)`)
 
+type PathEntry struct {
+	Item     int    `json:"item"`
+	Name     string `json:"name"`
+	NameType string `json:"name_type,omitempty"`
+	Inode    int    `json:"inode,omitempty"`
+}
+
 type Record struct {
-	Serial     string              `json:"serial"`
-	SessionID  int                 `json:"session_id,omitempty"`
-	AUID       string              `json:"auid,omitempty"`
-	EUID       string              `json:"euid,omitempty"`
-	Executable string              `json:"executable,omitempty"`
-	Command    string              `json:"command,omitempty"`
-	PID        int                 `json:"pid,omitempty"`
-	ParentPID  int                 `json:"parent_pid,omitempty"`
-	Terminal   string              `json:"terminal,omitempty"`
-	EventTypes []string            `json:"event_types,omitempty"`
-	Events     []evidence.Event    `json:"events,omitempty"`
-	Paths      []string            `json:"paths,omitempty"`
-	PathTypes  map[string][]string `json:"path_types,omitempty"`
-	Keys       []string            `json:"keys,omitempty"`
-	Syscall    string              `json:"syscall,omitempty"`
-	Success    string              `json:"success,omitempty"`
+	Serial      string              `json:"serial"`
+	SessionID   int                 `json:"session_id,omitempty"`
+	AUID        string              `json:"auid,omitempty"`
+	EUID        string              `json:"euid,omitempty"`
+	Executable  string              `json:"executable,omitempty"`
+	Command     string              `json:"command,omitempty"`
+	PID         int                 `json:"pid,omitempty"`
+	ParentPID   int                 `json:"parent_pid,omitempty"`
+	Terminal    string              `json:"terminal,omitempty"`
+	EventTypes  []string            `json:"event_types,omitempty"`
+	Events      []evidence.Event    `json:"events,omitempty"`
+	Paths       []string            `json:"paths,omitempty"`
+	PathTypes   map[string][]string `json:"path_types,omitempty"`
+	PathEntries []PathEntry         `json:"path_entries,omitempty"`
+	Keys        []string            `json:"keys,omitempty"`
+	Syscall     string              `json:"syscall,omitempty"`
+	Success     string              `json:"success,omitempty"`
 }
 
 type Builder struct {
@@ -94,12 +102,23 @@ func (b *Builder) AddEvent(ev evidence.Event) {
 	if name, ok := ev.Context["name"].(string); ok && name != "" {
 		r.Paths = appendUniqueString(r.Paths, name)
 
-		if nameType, ok := ev.Context["nametype"].(string); ok && nameType != "" {
+		nameType, _ := ev.Context["nametype"].(string)
+
+		if nameType != "" {
 			if r.PathTypes == nil {
 				r.PathTypes = map[string][]string{}
 			}
 
 			r.PathTypes[name] = appendUniqueString(r.PathTypes[name], nameType)
+		}
+
+		if ev.EventType == "auditd.path" {
+			r.PathEntries = append(r.PathEntries, PathEntry{
+				Item:     intFromMap(ev.Context, "item"),
+				Name:     name,
+				NameType: nameType,
+				Inode:    intFromMap(ev.Context, "inode"),
+			})
 		}
 	}
 
@@ -114,6 +133,9 @@ func (b *Builder) Records() []Record {
 		sort.Strings(r.EventTypes)
 		sort.Strings(r.Paths)
 		sort.Strings(r.Keys)
+		sort.SliceStable(r.PathEntries, func(i, j int) bool {
+			return r.PathEntries[i].Item < r.PathEntries[j].Item
+		})
 		result = append(result, *r)
 	}
 
