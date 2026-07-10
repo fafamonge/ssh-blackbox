@@ -282,6 +282,20 @@ func TestBuildPreservesPathTypes(t *testing.T) {
 				"/root/.ssh/": {"PARENT"},
 				path:          {"CREATE"},
 			},
+			PathEntries: []auditrecord.PathEntry{
+				{
+					Item:     0,
+					Name:     "/root/.ssh/",
+					NameType: "PARENT",
+					Inode:    100,
+				},
+				{
+					Item:     1,
+					Name:     path,
+					NameType: "CREATE",
+					Inode:    200,
+				},
+			},
 			Keys:    []string{"ssh_blackbox"},
 			Syscall: "openat",
 		},
@@ -309,5 +323,43 @@ func TestBuildPreservesPathTypes(t *testing.T) {
 			"expected create path type to be preserved, got %v",
 			criticalChange.PathTypes[path],
 		)
+	}
+
+	if len(criticalChange.PathEntries) != 2 {
+		t.Fatalf(
+			"expected 2 path entries, got %d",
+			len(criticalChange.PathEntries),
+		)
+	}
+
+	expectedEntries := []auditrecord.PathEntry{
+		{
+			Item:     0,
+			Name:     "/root/.ssh/",
+			NameType: "PARENT",
+			Inode:    100,
+		},
+		{
+			Item:     1,
+			Name:     path,
+			NameType: "CREATE",
+			Inode:    200,
+		},
+	}
+
+	for index, expected := range expectedEntries {
+		if criticalChange.PathEntries[index] != expected {
+			t.Fatalf(
+				"path entry %d: expected %+v, got %+v",
+				index,
+				expected,
+				criticalChange.PathEntries[index],
+			)
+		}
+	}
+
+	records[0].PathEntries[0].Name = "/modified/source"
+	if criticalChange.PathEntries[0].Name != "/root/.ssh/" {
+		t.Fatal("expected critical change path entries to be copied")
 	}
 }
