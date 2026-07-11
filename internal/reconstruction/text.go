@@ -169,55 +169,6 @@ func WriteText(
 			}
 		}
 
-		if len(r.FileActivities) > 0 {
-			if _, err := fmt.Fprintln(w, "FILE ACTIVITY"); err != nil {
-				return err
-			}
-
-			for _, activity := range r.FileActivities {
-				if _, err := fmt.Fprintf(w, "\n%s\n", activity.Path); err != nil {
-					return err
-				}
-
-				for _, criticalChange := range activity.Changes {
-					if _, err := fmt.Fprintf(
-						w,
-						"- serial=%s operation=%s\n",
-						criticalChange.Serial,
-						criticalChange.Operation,
-					); err != nil {
-						return err
-					}
-				}
-			}
-
-			if _, err := fmt.Fprintln(w); err != nil {
-				return err
-			}
-		}
-
-		if len(r.FileMovements) > 0 {
-			if _, err := fmt.Fprintln(w, "FILE MOVEMENTS"); err != nil {
-				return err
-			}
-
-			for _, movement := range r.FileMovements {
-				if _, err := fmt.Fprintf(
-					w,
-					"serial=%s source=%s target=%s\n",
-					movement.Serial,
-					movement.SourcePath,
-					movement.TargetPath,
-				); err != nil {
-					return err
-				}
-			}
-
-			if _, err := fmt.Fprintln(w); err != nil {
-				return err
-			}
-		}
-
 		if len(r.CriticalChanges) > 0 {
 			if _, err := fmt.Fprintln(w, "CRITICAL FILE CHANGES"); err != nil {
 				return err

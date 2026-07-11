@@ -73,11 +73,9 @@ func TestWriteText(t *testing.T) {
 		"16695",
 		"RECORDED EXECUTIONS",
 		"/usr/bin/touch",
-		"FILE ACTIVITY",
+		"FILE TIMELINE",
 		"/root/.ssh/test.tmp",
-		"- serial=3528892 operation=create",
-		"FILE MOVEMENTS",
-		"serial=3528893 source=/root/.bash_history-00001.tmp target=/root/.bash_history",
+		"- serial=3528892 created",
 		"actor_identity_match",
 		"remote_address_match",
 	}
@@ -241,5 +239,60 @@ func TestWriteTextNarratesFileMovements(t *testing.T) {
 		if !strings.Contains(text, want) {
 			t.Fatalf("expected output to contain %q", want)
 		}
+	}
+}
+
+func TestWriteTextDoesNotRepeatIntermediateFileSections(t *testing.T) {
+	var output bytes.Buffer
+
+	reconstructions := []Reconstruction{
+		{
+			SSHSessionID: "ssh-1",
+			FileActivities: []FileActivity{
+				{
+					Path: "/tmp/source",
+					Changes: []change.CriticalChange{
+						{
+							Serial:    "7000001",
+							Operation: change.OperationDelete,
+						},
+					},
+				},
+				{
+					Path: "/tmp/target",
+					Changes: []change.CriticalChange{
+						{
+							Serial:    "7000001",
+							Operation: change.OperationCreate,
+						},
+					},
+				},
+			},
+			FileMovements: []FileMovement{
+				{
+					Serial:     "7000001",
+					SourcePath: "/tmp/source",
+					TargetPath: "/tmp/target",
+				},
+			},
+		},
+	}
+
+	if err := WriteText(&output, reconstructions, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	text := output.String()
+
+	if !strings.Contains(text, "FILE TIMELINE") {
+		t.Fatal("expected FILE TIMELINE section")
+	}
+
+	if strings.Contains(text, "\nFILE ACTIVITY\n") {
+		t.Fatal("did not expect repeated FILE ACTIVITY section")
+	}
+
+	if strings.Contains(text, "\nFILE MOVEMENTS\n") {
+		t.Fatal("did not expect repeated FILE MOVEMENTS section")
 	}
 }
