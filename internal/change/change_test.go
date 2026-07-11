@@ -188,12 +188,60 @@ func TestBuildClassifiesCriticalOperations(t *testing.T) {
 			Keys:      []string{"ssh_blackbox"},
 			Syscall:   "chown",
 		},
+		{
+			Serial: "7000007",
+			Paths:  []string{"/tmp/source", "/tmp/target"},
+			PathTypes: map[string][]string{
+				"/tmp/source": {"DELETE"},
+				"/tmp/target": {"CREATE"},
+			},
+			PathEntries: []auditrecord.PathEntry{
+				{
+					Item:     0,
+					Name:     "/tmp/source",
+					NameType: "DELETE",
+					Inode:    300,
+				},
+				{
+					Item:     1,
+					Name:     "/tmp/target",
+					NameType: "CREATE",
+					Inode:    300,
+				},
+			},
+			Keys:    []string{"ssh_blackbox"},
+			Syscall: "rename",
+		},
+		{
+			Serial: "7000008",
+			Paths:  []string{"/tmp/source2", "/tmp/target2"},
+			PathTypes: map[string][]string{
+				"/tmp/source2": {"DELETE"},
+				"/tmp/target2": {"CREATE"},
+			},
+			PathEntries: []auditrecord.PathEntry{
+				{
+					Item:     0,
+					Name:     "/tmp/source2",
+					NameType: "DELETE",
+					Inode:    400,
+				},
+				{
+					Item:     1,
+					Name:     "/tmp/target2",
+					NameType: "CREATE",
+					Inode:    500,
+				},
+			},
+			Keys:    []string{"ssh_blackbox"},
+			Syscall: "renameat",
+		},
 	}
 
 	changes := Build(records)
 
-	if len(changes) != 6 {
-		t.Fatalf("expected 6 critical changes, got %d", len(changes))
+	if len(changes) != 8 {
+		t.Fatalf("expected 8 critical changes, got %d", len(changes))
 	}
 
 	expected := map[string]string{
@@ -203,6 +251,8 @@ func TestBuildClassifiesCriticalOperations(t *testing.T) {
 		"7000004": OperationDelete,
 		"7000005": OperationUnknown,
 		"7000006": OperationMetadataChange,
+		"7000007": OperationMove,
+		"7000008": OperationDelete,
 	}
 
 	for _, criticalChange := range changes {
@@ -256,6 +306,7 @@ func TestBuildClassifiesBavariaRealOperations(t *testing.T) {
 		"4104134": OperationModify,
 		"4104136": OperationDelete,
 		"4104158": OperationMetadataChange,
+		"4104160": OperationMove,
 	}
 
 	for serial, want := range expected {

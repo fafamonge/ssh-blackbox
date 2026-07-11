@@ -11,6 +11,7 @@ const (
 	OperationModify         = "modify"
 	OperationMetadataChange = "metadata_change"
 	OperationDelete         = "delete"
+	OperationMove           = "move"
 	OperationUnknown        = "unknown"
 )
 
@@ -80,6 +81,10 @@ func hasCriticalWatchKey(keys []string) bool {
 }
 
 func classifyOperation(record auditrecord.Record) string {
+	if isFileMovement(record) {
+		return OperationMove
+	}
+
 	if recordHasPathType(record, "DELETE") {
 		return OperationDelete
 	}
@@ -99,6 +104,34 @@ func classifyOperation(record auditrecord.Record) string {
 	default:
 		return OperationUnknown
 	}
+}
+
+func isFileMovement(record auditrecord.Record) bool {
+	switch record.Syscall {
+	case "rename", "renameat", "renameat2":
+	default:
+		return false
+	}
+
+	deletedInodes := make(map[int]struct{})
+
+	for _, entry := range record.PathEntries {
+		if entry.NameType == "DELETE" && entry.Inode != 0 {
+			deletedInodes[entry.Inode] = struct{}{}
+		}
+	}
+
+	for _, entry := range record.PathEntries {
+		if entry.NameType != "CREATE" || entry.Inode == 0 {
+			continue
+		}
+
+		if _, exists := deletedInodes[entry.Inode]; exists {
+			return true
+		}
+	}
+
+	return false
 }
 
 func recordHasPathType(record auditrecord.Record, expected string) bool {
