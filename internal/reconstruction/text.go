@@ -137,6 +137,39 @@ func WriteText(
 		}
 
 		if len(r.FileActivities) > 0 {
+			if _, err := fmt.Fprintln(w, "FILE TIMELINE"); err != nil {
+				return err
+			}
+
+			for _, activity := range r.FileActivities {
+				if _, err := fmt.Fprintf(w, "\n%s\n", activity.Path); err != nil {
+					return err
+				}
+
+				for _, criticalChange := range activity.Changes {
+					description := fileTimelineDescription(
+						activity.Path,
+						criticalChange,
+						r.FileMovements,
+					)
+
+					if _, err := fmt.Fprintf(
+						w,
+						"- serial=%s %s\n",
+						criticalChange.Serial,
+						description,
+					); err != nil {
+						return err
+					}
+				}
+			}
+
+			if _, err := fmt.Fprintln(w); err != nil {
+				return err
+			}
+		}
+
+		if len(r.FileActivities) > 0 {
 			if _, err := fmt.Fprintln(w, "FILE ACTIVITY"); err != nil {
 				return err
 			}
@@ -261,6 +294,39 @@ func WriteText(
 	}
 
 	return nil
+}
+
+func fileTimelineDescription(
+	path string,
+	criticalChange change.CriticalChange,
+	movements []FileMovement,
+) string {
+	for _, movement := range movements {
+		if movement.Serial != criticalChange.Serial {
+			continue
+		}
+
+		if path == movement.SourcePath {
+			return "moved to " + movement.TargetPath
+		}
+
+		if path == movement.TargetPath {
+			return "replaced from " + movement.SourcePath
+		}
+	}
+
+	switch criticalChange.Operation {
+	case change.OperationCreate:
+		return "created"
+	case change.OperationModify:
+		return "modified"
+	case change.OperationMetadataChange:
+		return "metadata changed"
+	case change.OperationDelete:
+		return "deleted"
+	default:
+		return "operation unknown"
+	}
 }
 
 type executionSummary struct {

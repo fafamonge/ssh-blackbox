@@ -172,3 +172,74 @@ func TestWriteTextSummarizesAuxiliaryExecutions(t *testing.T) {
 		t.Fatalf("expected grep executions to be summarized\noutput:\n%s", text)
 	}
 }
+
+func TestWriteTextNarratesFileMovements(t *testing.T) {
+	var output bytes.Buffer
+
+	reconstructions := []Reconstruction{
+		{
+			FileActivities: []FileActivity{
+				{
+					Path: "/root/.bash_history",
+					Changes: []change.CriticalChange{
+						{
+							Serial:    "4104157",
+							Operation: change.OperationModify,
+						},
+						{
+							Serial:    "4104158",
+							Operation: change.OperationMetadataChange,
+						},
+						{
+							Serial:    "4104160",
+							Operation: change.OperationCreate,
+						},
+					},
+				},
+				{
+					Path: "/root/.bash_history-03263.tmp",
+					Changes: []change.CriticalChange{
+						{
+							Serial:    "4104159",
+							Operation: change.OperationCreate,
+						},
+						{
+							Serial:    "4104160",
+							Operation: change.OperationDelete,
+						},
+					},
+				},
+			},
+			FileMovements: []FileMovement{
+				{
+					Serial:     "4104160",
+					SourcePath: "/root/.bash_history-03263.tmp",
+					TargetPath: "/root/.bash_history",
+				},
+			},
+		},
+	}
+
+	if err := WriteText(&output, reconstructions, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	expected := []string{
+		"FILE TIMELINE",
+		"/root/.bash_history",
+		"- serial=4104157 modified",
+		"- serial=4104158 metadata changed",
+		"- serial=4104160 replaced from /root/.bash_history-03263.tmp",
+		"/root/.bash_history-03263.tmp",
+		"- serial=4104159 created",
+		"- serial=4104160 moved to /root/.bash_history",
+	}
+
+	text := output.String()
+
+	for _, want := range expected {
+		if !strings.Contains(text, want) {
+			t.Fatalf("expected output to contain %q", want)
+		}
+	}
+}
