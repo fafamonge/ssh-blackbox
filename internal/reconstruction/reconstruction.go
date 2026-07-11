@@ -36,6 +36,7 @@ type Reconstruction struct {
 	LinkReasons     []string                `json:"link_reasons,omitempty"`
 	CriticalChanges []change.CriticalChange `json:"critical_changes,omitempty"`
 	FileActivities  []FileActivity          `json:"file_activities,omitempty"`
+	FileMovements   []FileMovement          `json:"file_movements,omitempty"`
 }
 
 func Build(
@@ -91,6 +92,7 @@ func Build(
 			LinkReasons:     append([]string(nil), evidenceLink.Reasons...),
 			CriticalChanges: sessionCriticalChanges,
 			FileActivities:  BuildFileActivities(sessionCriticalChanges),
+			FileMovements:   BuildFileMovements(sessionCriticalChanges),
 		}
 
 		result = append(result, reconstruction)

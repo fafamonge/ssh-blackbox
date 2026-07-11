@@ -173,6 +173,57 @@ func TestBavariaRealParallelSSHChain(t *testing.T) {
 	}
 }
 
+func TestBavariaRealFileMovement(t *testing.T) {
+	sshEvents := parseSSHFixture(
+		t,
+		"../../tests/fixtures/secure/bavaria-real-parallel-ssh.log",
+	)
+	auditEvents := parseAuditFixture(
+		t,
+		"../../tests/fixtures/auditd/bavaria-real-ses-16949.log",
+	)
+
+	sshBuilder := session.NewBuilder()
+	for _, ev := range sshEvents {
+		sshBuilder.AddEvent(ev)
+	}
+
+	auditBuilder := correlation.NewAuditSessionBuilder()
+	recordBuilder := auditrecord.NewBuilder()
+
+	for _, ev := range auditEvents {
+		auditBuilder.AddEvent(ev)
+		recordBuilder.AddEvent(ev)
+	}
+
+	criticalChanges := change.Build(recordBuilder.Records())
+	movements := BuildFileMovements(criticalChanges)
+
+	if len(movements) != 1 {
+		t.Fatalf("expected 1 file movement, got %d", len(movements))
+	}
+
+	movement := movements[0]
+
+	if movement.Serial != "4104160" {
+		t.Fatalf("expected serial 4104160, got %s", movement.Serial)
+	}
+
+	if movement.SourcePath != "/root/.bash_history-03263.tmp" {
+		t.Fatalf(
+			"expected source /root/.bash_history-03263.tmp, got %s",
+			movement.SourcePath,
+		)
+	}
+
+	if movement.TargetPath != "/root/.bash_history" {
+		t.Fatalf(
+			"expected target /root/.bash_history, got %s",
+			movement.TargetPath,
+		)
+	}
+}
+
 func hasRecordedExecution(
 	executions []RecordedExecution,
 	executable string,

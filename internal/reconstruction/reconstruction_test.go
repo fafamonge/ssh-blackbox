@@ -3,6 +3,7 @@ package reconstruction
 import (
 	"testing"
 
+	"github.com/fafamonge/ssh-blackbox/internal/auditrecord"
 	"github.com/fafamonge/ssh-blackbox/internal/change"
 	"github.com/fafamonge/ssh-blackbox/internal/correlation"
 	"github.com/fafamonge/ssh-blackbox/internal/evidence"
@@ -81,6 +82,33 @@ func TestBuildReconstruction(t *testing.T) {
 				criticalPath:  {"CREATE"},
 			},
 		},
+		{
+			Serial:       "3528893",
+			AuditSession: 16695,
+			Operation:    change.OperationDelete,
+			Paths: []string{
+				"/root/.bash_history-00001.tmp",
+				"/root/.bash_history",
+			},
+			PathTypes: map[string][]string{
+				"/root/.bash_history-00001.tmp": {"DELETE"},
+				"/root/.bash_history":           {"DELETE", "CREATE"},
+			},
+			PathEntries: []auditrecord.PathEntry{
+				{
+					Item:     0,
+					Name:     "/root/.bash_history-00001.tmp",
+					NameType: "DELETE",
+					Inode:    300,
+				},
+				{
+					Item:     1,
+					Name:     "/root/.bash_history",
+					NameType: "CREATE",
+					Inode:    300,
+				},
+			},
+		},
 	}
 
 	result := Build(
@@ -133,40 +161,93 @@ func TestBuildReconstruction(t *testing.T) {
 		)
 	}
 
-	if len(r.CriticalChanges) != 1 {
+	if len(r.CriticalChanges) != 2 {
 		t.Fatalf(
-			"expected 1 critical change, got %d",
+			"expected 2 critical changes, got %d",
 			len(r.CriticalChanges),
 		)
 	}
 
-	if len(r.FileActivities) != 1 {
+	if len(r.FileActivities) != 3 {
 		t.Fatalf(
-			"expected 1 file activity, got %d",
+			"expected 3 file activities, got %d",
 			len(r.FileActivities),
 		)
 	}
 
-	if r.FileActivities[0].Path != criticalPath {
+	criticalActivity := fileActivityByPathForTest(
+		r.FileActivities,
+		criticalPath,
+	)
+	if criticalActivity == nil {
+		t.Fatalf("expected file activity for %s", criticalPath)
+	}
+
+	if len(criticalActivity.Changes) != 1 {
 		t.Fatalf(
-			"expected file activity path %s, got %s",
-			criticalPath,
-			r.FileActivities[0].Path,
+			"expected 1 change in critical activity, got %d",
+			len(criticalActivity.Changes),
 		)
 	}
 
-	if len(r.FileActivities[0].Changes) != 1 {
-		t.Fatalf(
-			"expected 1 change in file activity, got %d",
-			len(r.FileActivities[0].Changes),
-		)
-	}
-
-	if r.FileActivities[0].Changes[0].Serial != "3528892" {
+	if criticalActivity.Changes[0].Serial != "3528892" {
 		t.Fatalf(
 			"expected serial 3528892, got %s",
-			r.FileActivities[0].Changes[0].Serial,
+			criticalActivity.Changes[0].Serial,
 		)
+	}
+
+	sourceActivity := fileActivityByPathForTest(
+		r.FileActivities,
+		"/root/.bash_history-00001.tmp",
+	)
+	if sourceActivity == nil {
+		t.Fatal("expected source file activity")
+	}
+
+	if sourceActivity.Changes[0].Operation != change.OperationDelete {
+		t.Fatalf(
+			"expected source operation %s, got %s",
+			change.OperationDelete,
+			sourceActivity.Changes[0].Operation,
+		)
+	}
+
+	targetActivity := fileActivityByPathForTest(
+		r.FileActivities,
+		"/root/.bash_history",
+	)
+	if targetActivity == nil {
+		t.Fatal("expected target file activity")
+	}
+
+	if targetActivity.Changes[0].Operation != change.OperationCreate {
+		t.Fatalf(
+			"expected target operation %s, got %s",
+			change.OperationCreate,
+			targetActivity.Changes[0].Operation,
+		)
+	}
+
+	if len(r.FileMovements) != 1 {
+		t.Fatalf(
+			"expected 1 file movement, got %d",
+			len(r.FileMovements),
+		)
+	}
+
+	movement := r.FileMovements[0]
+
+	if movement.Serial != "3528893" {
+		t.Fatalf("expected movement serial 3528893, got %s", movement.Serial)
+	}
+
+	if movement.SourcePath != "/root/.bash_history-00001.tmp" {
+		t.Fatalf("unexpected movement source %s", movement.SourcePath)
+	}
+
+	if movement.TargetPath != "/root/.bash_history" {
+		t.Fatalf("unexpected movement target %s", movement.TargetPath)
 	}
 }
 
