@@ -42,6 +42,13 @@ func TestWriteText(t *testing.T) {
 					},
 				},
 			},
+			FileMovements: []FileMovement{
+				{
+					Serial:     "3528893",
+					SourcePath: "/root/.bash_history-00001.tmp",
+					TargetPath: "/root/.bash_history",
+				},
+			},
 			LinkReasons: []string{
 				"actor_identity_match",
 				"remote_address_match",
@@ -69,6 +76,8 @@ func TestWriteText(t *testing.T) {
 		"FILE ACTIVITY",
 		"/root/.ssh/test.tmp",
 		"- serial=3528892 operation=create",
+		"FILE MOVEMENTS",
+		"serial=3528893 source=/root/.bash_history-00001.tmp target=/root/.bash_history",
 		"actor_identity_match",
 		"remote_address_match",
 	}
